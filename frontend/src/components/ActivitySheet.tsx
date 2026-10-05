@@ -66,9 +66,12 @@ export default function ActivitySheet(p: { busy: boolean; error?: string; onClos
         </div>
 
         {p.error && <div className="alert error">{p.error}</div>}
-        <button className="btn primary sticky" disabled={count === 0 || p.busy} onClick={p.onSubmit}>
-          {p.busy ? "Checking out…" : `Submit ${count} ${count === 1 ? "activity" : "activities"} & check out`}
-        </button>
+        <div className="row sticky">
+          <button className="btn" disabled={p.busy || add.isPending} onClick={p.onClose}>Cancel</button>
+          <button className="btn primary" disabled={count === 0 || p.busy} onClick={p.onSubmit}>
+            {p.busy ? "Checking out…" : `Submit ${count} ${count === 1 ? "activity" : "activities"} & check out`}
+          </button>
+        </div>
       </div>
     </div>
   );
