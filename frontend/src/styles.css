@@ -47,6 +47,8 @@ input[type="date"].request-date-input { display: block; box-sizing: border-box; 
   .request-date-row { grid-template-columns: 1fr; gap: 12px; }
   .request-date-row > div { width: 100%; }
   .request-date-row label { margin-top: 0; }
+  input[type="date"].request-date-input { height: 44px !important; min-height: 44px !important;
+    padding: 6px 10px; font-size: 15px; line-height: 1.2; }
 }
 
 label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
