@@ -1,0 +1,44 @@
+# Secrets and deployment-specific configuration
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Python / Django
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+*.log
+backend/media/
+backend/staticfiles/
+
+# Node / Vite build output
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+
+# Test, lint and tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

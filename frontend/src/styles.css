@@ -1,0 +1,241 @@
+:root {
+  /* Sampled from the NASRDA seal: deep navy circle + green ribbon text. */
+  --navy: #19297D; --navy-light: #2C3FA0; --green: #0f8a5f; --amber: #d99a00; --red: #c0392b;
+  --bg: #f3f6fa; --card: #fff; --text: #14212e; --muted: #6b7a8c; --radius: 16px; --sidebar-w: 278px;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  color-scheme: light;   /* stops phones in dark mode from auto-inverting form fields */
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--bg); color: var(--text); }
+.app { min-height: 100dvh; padding-bottom: calc(72px + var(--safe-b)); }
+.page { max-width: 560px; margin: 0 auto; padding: calc(16px + var(--safe-t)) 16px 24px; }
+.page.wide { max-width: 1100px; }
+h2 { margin: 4px 0 8px; } .muted, small { color: var(--muted); } small { display: block; font-size: 12px; }
+
+.hero { background: linear-gradient(135deg, var(--navy), var(--navy-light)); color: #fff; padding: 20px;
+        border-radius: var(--radius); margin-bottom: 14px; }
+.hero .muted { color: #b9cbe0; margin: 0; }
+
+.card { background: var(--card); border-radius: var(--radius); padding: 16px; margin: 12px 0;
+        box-shadow: 0 1px 3px rgba(11,42,74,.08); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid2 b { font-size: 18px; }
+.row { display: flex; gap: 10px; } .row > * { flex: 1; }
+.request-date-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.request-date-row > div { min-width: 0; }
+.date-picker-shell { position: relative; width: 100%; overflow: hidden; border-radius: 12px; }
+.date-picker-display { min-height: 49px; width: 100%; padding: 12px; border: 1px solid #cfd8e3; border-radius: 12px;
+  background: #fff; color: var(--text); font-size: 16px; line-height: 23px; }
+.date-picker-display { display: block; text-align: left; font: inherit; font-size: 16px; line-height: 23px; cursor: pointer; }
+.date-picker-display:focus-visible { outline: 2px solid var(--navy-light); outline-offset: 1px; }
+.date-picker-display.placeholder { color: var(--muted); }
+/* The native picker is deliberately transparent. iOS can keep its native date picker,
+   while its oversized browser-drawn border can never escape the visual field above. */
+.date-picker-shell input[type="date"], .date-picker-shell input[type="month"] { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  min-width: 0; margin: 0; opacity: 0; pointer-events: none; }
+.history-month-picker { width: 100%; }
+/* iOS keeps a fairly wide native date control; stack these fields on phone-width screens
+   so neither control can press against or overflow the other. */
+@media (max-width: 480px) {
+  .request-date-row { grid-template-columns: 1fr; gap: 12px; }
+  .request-date-row > div { width: 100%; }
+  .request-date-row label { margin-top: 0; }
+}
+
+label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+input, select, textarea { width: 100%; font: inherit; font-size: 16px; /* 16px stops iOS zoom */
+  padding: 12px; border: 1px solid #cfd8e3; border-radius: 12px;
+  background: #fff; color: var(--text); caret-color: var(--text); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--navy-light); outline-offset: 1px; }
+/* Chrome/Safari autofill can paint its own (sometimes near-white) text colour — force ours back. */
+input:-webkit-autofill { -webkit-text-fill-color: var(--text) !important;
+  box-shadow: 0 0 0 1000px #fff inset !important; caret-color: var(--text) !important; }
+
+.password-field { position: relative; }
+.password-field input { padding-right: 44px; }
+.eye-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none;
+  color: var(--muted); border-radius: 8px; }
+.eye-btn:active { background: #eef2f7; }
+
+.btn { width: 100%; padding: 14px; margin-top: 12px; border-radius: 12px; border: 1px solid #cfd8e3;
+       background: #fff; font: inherit; font-weight: 600; display: inline-flex; align-items: center;
+       justify-content: center; gap: 8px; }
+.btn.primary { background: var(--navy); color: #fff; border: 0; }
+.btn:disabled, .bigbtn:disabled { opacity: .7; cursor: not-allowed; }
+.link { background: none; border: 0; color: var(--red); font: inherit; }
+.login-reset-link { display: block; margin: 12px auto 0; color: var(--navy); font-size: 14px; }
+
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; flex-shrink: 0; }
+.btn:not(.primary) .spinner { border-color: rgba(20,33,46,.25); border-top-color: var(--navy); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.action { display: grid; place-items: center; margin: 22px 0; }
+.bigbtn { width: 190px; height: 190px; border-radius: 50%; border: 0; color: #fff; font-size: 20px;
+          font-weight: 800; letter-spacing: .5px; padding: 16px; box-shadow: 0 10px 28px rgba(0,0,0,.22); }
+.bigbtn.in { background: var(--green); } .bigbtn.out { background: var(--navy); }
+.bigbtn:disabled { background: #98a4b3; color: #f7f9fb; opacity: 1; }
+.bigbtn:active { transform: scale(.97); }
+.done { font-weight: 600; color: var(--green); }
+
+.pill { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 700;
+        background: #e7edf4; color: var(--navy); margin-top: 6px; }
+.pill.checked_in, .pill.on_time { background: #dff5ea; color: var(--green); }
+.pill.approved { background: #dff5ea; color: var(--green); }
+.pill.rejected { background: #fde2df; color: var(--red); }
+.pill.recalled { background: #e7edf4; color: var(--navy); }
+.pill.pending { background: #fff1cc; color: #6e5100; }
+.pill.late { background: #fde2df; color: var(--red); }
+.pill.review { background: #fde2df; color: var(--red); }
+.status-approved { color: var(--green); font-weight: 600; }
+.status-rejected { color: var(--red); font-weight: 600; }
+
+.alert { padding: 12px 14px; border-radius: 12px; margin: 10px 0; font-size: 14px; }
+.alert.error { background: #fde2df; color: #8e2b20; } .alert.warn { background: #fff1cc; color: #6e5100; }
+.alert.success { background: #dff5ea; color: #0b6b49; } .alert.big { font-size: 18px; font-weight: 800; text-align: center; }
+
+.row-card { background: #fff; border-radius: 14px; padding: 12px 14px; margin: 8px 0;
+            display: flex; justify-content: space-between; align-items: center; }
+.row-card .correction-btn { width: auto; min-height: 32px; margin: 6px 0 0; padding: 5px 8px; font-size: 12px; color: var(--navy); background: #eef2f9; border-color: #cbd6e8; }
+.row-card .recall-btn { width: auto; min-height: 32px; margin: 0; padding: 5px 10px; font-size: 12px; color: var(--navy); background: #eef2f9; border-color: #cbd6e8; }
+
+/* bottom tab bar */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: #fff;
+          border-top: 1px solid #e3e9f0; padding-bottom: var(--safe-b); z-index: 20; }
+.tabbar a, .tabbar button { flex: 1; display: grid; place-items: center; gap: 2px; padding: 9px 0;
+  font-size: 20px; text-decoration: none; color: var(--muted); background: none; border: 0; }
+.tabbar span { font-size: 11px; } .tabbar a.active { color: var(--navy); font-weight: 700; }
+
+/* Modal shell: keep every dialog within the viewport and scroll its contents when needed. */
+.sheet-backdrop { position: fixed; inset: 0; background: rgba(8,20,35,.5); z-index: 2000; display: flex;
+                  align-items: center; justify-content: center; padding: 16px; overflow: hidden; }
+.sheet { background: var(--bg); width: min(100%, 720px); max-height: calc(100dvh - 32px); overflow-y: auto;
+         border-radius: 22px; padding: 16px max(16px, env(safe-area-inset-right)) calc(16px + var(--safe-b)); }
+.grab { width: 44px; height: 5px; border-radius: 3px; background: #c5d0dc; margin: 0 auto 10px; }
+.act { display: flex; justify-content: space-between; background: #fff; padding: 10px 12px; border-radius: 12px; margin: 6px 0; }
+.sticky { position: sticky; bottom: 0; }
+
+/* login + splash */
+.login { min-height: 100dvh; display: flex; flex-direction: column; justify-content: center; padding: 20px;
+         max-width: 420px; margin: 0 auto; }
+.brand { text-align: center; margin-bottom: 14px; }
+.brand h1 { margin: 0 0 4px; color: var(--navy); font-size: 24px; font-weight: 800; line-height: 1.2; }
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.logo-img { width: 148px; height: 148px; margin: 0 auto 5px; display: block; object-fit: contain; }
+.splash { min-height: 100dvh; display: grid; place-items: center; font-weight: 800; color: var(--navy); }
+
+/* admin */
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 720px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat { background: #fff; border-radius: 14px; padding: 14px; } .stat b { font-size: 26px; display: block; }
+.table-wrap { overflow-x: auto; background: #fff; border-radius: 14px; }
+.staff-toolbar { display: flex; align-items: center; gap: 12px; margin: 16px 0 20px; }
+.staff-toolbar .staff-search { flex: 1 1 280px; min-width: 0; height: 48px; margin: 0; }
+.staff-toolbar .btn { flex: 0 0 auto; width: auto; height: 48px; min-height: 48px; margin: 0; padding: 0 18px; white-space: nowrap; }
+.staff-table { margin-top: 0; }
+.staff-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.staff-pagination > div { display: flex; gap: 8px; }
+.staff-pagination .btn { width: auto; min-width: 94px; margin: 0; padding: 10px 14px; }
+.request-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.request-pagination > div { display: flex; gap: 8px; }
+.request-pagination .btn { width: auto; min-width: 88px; margin: 0; padding: 8px 12px; }
+.staff-toggle { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+.staff-toggle input { width: 20px; height: 20px; flex: 0 0 auto; }
+.holiday-add { width: auto; margin: 12px 0 20px; }
+.report-filters { margin-top: 2px; }
+.holidays-table .link + .link { margin-left: 12px; }
+.audit-table-wrap { overflow-x: hidden; }
+.audit-filter { margin-bottom: 20px; }
+.audit-table-wrap table { table-layout: fixed; }
+.audit-table-wrap th, .audit-table-wrap td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
+.audit-table-wrap th:nth-child(1), .audit-table-wrap td:nth-child(1) { width: 16%; }
+.audit-table-wrap th:nth-child(2), .audit-table-wrap td:nth-child(2) { width: 10%; }
+.audit-table-wrap th:nth-child(3), .audit-table-wrap td:nth-child(3) { width: 16%; }
+.audit-table-wrap th:nth-child(4), .audit-table-wrap td:nth-child(4) { width: 44%; }
+.audit-table-wrap th:nth-child(5), .audit-table-wrap td:nth-child(5) { width: 14%; }
+.audit-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.audit-pagination > div { display: flex; gap: 8px; }
+.audit-pagination .btn { width: auto; min-width: 94px; margin: 0; padding: 10px 14px; }
+.departments-table-gap { height: 24px; }
+.roles-table-gap { height: 24px; }
+@media (max-width: 620px) {
+  .staff-toolbar { flex-wrap: wrap; }
+  .staff-toolbar .staff-search { flex-basis: 100%; }
+  .staff-toolbar .btn { flex: 1 1 auto; }
+  .staff-pagination { align-items: flex-start; flex-direction: column; }
+  .audit-pagination { align-items: flex-start; flex-direction: column; }
+}
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #edf1f5; white-space: nowrap; }
+.vertex { background: var(--red); border: 3px solid #fff; border-radius: 50%; }
+
+/* ---------- Geofence editor: toolbar + map, no inline "add campus" form ---------- */
+.gf-page { padding: 16px; }
+.gf-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
+.gf-toolbar > div:first-child { flex: 1; min-width: 160px; }
+.gf-toolbar label { margin-top: 0; }
+.gf-toolbar .btn { width: auto; margin-top: 0; white-space: nowrap; }
+.gf-spacer { flex: 1; }
+.gf-map { height: 60vh; border-radius: var(--radius); overflow: hidden; }
+.gf-map .leaflet-container { height: 100%; width: 100%; }
+.gf-empty { background: var(--card); border-radius: var(--radius); padding: 60px 20px; text-align: center; }
+
+/* ---------- Every button/link fills its whole clickable area, not just the text ---------- */
+button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cursor: pointer; }
+.btn, .tabbar a, .tabbar button, .row-card button.link { min-height: 44px; }   /* comfortable tap target */
+.eye-btn { width: 40px; height: 40px; }
+
+/* ---------- Desktop sidebar (hidden on phones/tablets; toggled on below) ---------- */
+.sidebar { display: none; flex-direction: column; width: var(--sidebar-w); background: #fff;
+  border-right: 1px solid #e3e9f0; padding: 12px 10px; position: sticky; top: 0; height: 100dvh; overflow: hidden; }
+.sidebar .brand-mini { display: flex; align-items: center; gap: 13px; padding: 8px 10px 18px; }
+.sidebar .brand-mini img { width: 64px; height: 64px; object-fit: contain; }
+.sidebar .brand-mini b { font-size: 18px; line-height: 1.15; color: var(--navy); }
+.sidebar a, .sidebar button { display: flex; align-items: center; gap: 10px; padding: 9px 11px; min-height: 42px;
+  border-radius: 9px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14px;
+  border: 0; background: none; width: 100%; text-align: left; cursor: pointer; }
+.sidebar a.active, .sidebar a:hover, .sidebar button:hover { background: #eef2f9; color: var(--navy); }
+.sidebar .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: #9aa8b8; margin: 12px 10px 4px; }
+
+/* Keep the complete navigation visible on shorter laptop screens as well. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .sidebar { padding: 8px; }
+  .sidebar .brand-mini { padding-bottom: 10px; }
+  .sidebar .brand-mini img { width: 46px; height: 46px; }
+  .sidebar .brand-mini b { font-size: 15px; }
+  .sidebar a, .sidebar button { min-height: 34px; padding: 6px 8px; font-size: 12px; }
+  .sidebar .section-label { margin: 7px 8px 2px; font-size: 10px; }
+}
+
+/*
+ * ---------- The mobile/desktop switch ----------
+ * Below 1024px (phones and tablets, portrait or landscape): bottom tab bar, single-column
+ * pages, the layout everything above was designed for.
+ * At 1024px and up (laptops and desktops): sidebar nav instead of the tab bar, wider pages,
+ * and the Home screen becomes two columns. Nothing in the React components changes between
+ * the two — only these rules decide which nav and which layout show.
+ */
+@media (min-width: 1024px) {
+  .app { display: flex; padding-bottom: 0; align-items: flex-start; }
+  .tabbar { display: none; }
+  .sidebar { display: flex; }
+  main { flex: 1; min-width: 0; }
+  .page { max-width: 760px; margin: 0 auto; padding: 32px 40px; }
+  .page.wide { max-width: 1200px; }
+
+  .home-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; align-items: start; }
+  .home-summary { margin-top: 0; }
+
+  .login { min-height: 100dvh; }
+  .hero { padding: 26px 28px; }
+  .bigbtn { width: 210px; height: 210px; font-size: 21px; }
+  .stats { grid-template-columns: repeat(4, 1fr); }
+
+  /* Geofence editor becomes a fixed-height, no-scroll working screen: toolbar + map share
+     the viewport instead of stacking, so drawing a boundary never needs the page to scroll. */
+  .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 20px 32px; }
+  .gf-map, .gf-empty { flex: 1; min-height: 0; height: auto; }
+}
