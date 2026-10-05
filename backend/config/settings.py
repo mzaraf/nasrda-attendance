@@ -61,6 +61,18 @@ DATABASES = {"default": {
     "PORT": os.environ.get("DB_PORT", "5432"),
 }}
 
+# WebAuthn challenges must be visible to every Gunicorn worker. Django's default
+# local-memory cache is per process, which makes a challenge appear "expired" when
+# the register-options and register-verify requests reach different workers. The
+# database cache is shared and needs no extra service such as Redis.
+CACHES = {
+    "default": {
+        "BACKEND": os.environ.get("DJANGO_CACHE_BACKEND", "django.core.cache.backends.db.DatabaseCache"),
+        "LOCATION": os.environ.get("DJANGO_CACHE_LOCATION", "django_cache"),
+        "TIMEOUT": 300,
+    }
+}
+
 # ---- Time: store UTC, display Africa/Lagos ----
 TIME_ZONE = "Africa/Lagos"
 USE_TZ = True
