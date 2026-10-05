@@ -1,3 +1,5 @@
+from datetime import time
+
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -29,11 +31,20 @@ class ActivitySerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyActivity
         fields = ["id", "category", "title", "description", "start_time", "end_time", "status", "output"]
+        extra_kwargs = {"start_time": {"required": False}, "end_time": {"required": False}, "output": {"required": False}}
 
     def validate(self, a):
-        if a["end_time"] <= a["start_time"]:
+        if "start_time" in a and "end_time" in a and a["end_time"] <= a["start_time"]:
             raise serializers.ValidationError("End time must be after start time.")
         return a
+
+    def create(self, validated_data):
+        # These are kept internally for existing reports, but are no longer fields
+        # staff need to complete in the simplified activity form.
+        validated_data.setdefault("start_time", time(0, 0))
+        validated_data.setdefault("end_time", time(0, 1))
+        validated_data.setdefault("output", "")
+        return super().create(validated_data)
 
 
 class CategorySerializer(serializers.ModelSerializer):

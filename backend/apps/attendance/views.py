@@ -367,6 +367,13 @@ class AttachmentUpload(APIView):
 
 class Categories(APIView):
     def get(self, request):
+        # Ensure a fresh production database always has usable categories, even if
+        # the optional seed command was not run during deployment.
+        defaults = ["Official Assignment", "Meeting", "Field Work", "Project Development", "Research",
+                    "Training", "Administrative Work", "Inspection", "Documentation",
+                    "Stakeholder Engagement", "Travel", "Other"]
+        for name in defaults:
+            ActivityCategory.objects.get_or_create(name=name)
         return Response(CategorySerializer(ActivityCategory.objects.filter(is_active=True), many=True).data)
 
 

@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errorOf } from "../api";
 
 type Act = { id: number; category: number; title: string; description: string;
-             start_time: string; end_time: string; output: string };
-const blank = { category: "", title: "", description: "", start_time: "08:00", end_time: "09:00", output: "" };
+             start_time: string; end_time: string };
+const blank = { category: "", title: "", description: "" };
 
 export default function ActivitySheet(p: { busy: boolean; error?: string; onClose: () => void; onSubmit: () => void }) {
   const qc = useQueryClient();
@@ -44,7 +44,7 @@ export default function ActivitySheet(p: { busy: boolean; error?: string; onClos
 
         {acts.data?.map((a) => (
           <div className="act" key={a.id}>
-            <div><b>{a.title}</b><small>{a.start_time.slice(0, 5)}–{a.end_time.slice(0, 5)}</small></div>
+            <div><b>{a.title}</b></div>
             <button className="link" onClick={() => remove.mutate(a.id)}>Remove</button>
           </div>
         ))}
@@ -59,12 +59,6 @@ export default function ActivitySheet(p: { busy: boolean; error?: string; onClos
           <input value={form.title} onChange={set("title")} />
           <label>Description</label>
           <textarea rows={3} value={form.description} onChange={set("description")} />
-          <div className="row">
-            <div><label>Start</label><input type="time" value={form.start_time} onChange={set("start_time")} /></div>
-            <div><label>End</label><input type="time" value={form.end_time} onChange={set("end_time")} /></div>
-          </div>
-          <label>Output / result</label>
-          <textarea rows={2} value={form.output} onChange={set("output")} />
           <label>Supporting document (optional)</label>
           <input type="file" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           {msg && <div className="alert error">{msg}</div>}
