@@ -29,7 +29,7 @@ h2 { margin: 4px 0 8px; } .muted, small { color: var(--muted); } small { display
    the real, tappable native date picker. */
 input[type="date"].request-date-input { display: block; box-sizing: border-box; inline-size: 100% !important;
   width: 100% !important; max-inline-size: 100% !important; max-width: 100% !important; min-inline-size: 0 !important;
-  min-width: 0 !important; height: 49px; }
+  min-width: 0 !important; height: 49px; -webkit-appearance: none; appearance: none; }
 .date-picker-shell { position: relative; width: 100%; overflow: hidden; border-radius: 12px; }
 .date-picker-display { min-height: 49px; width: 100%; padding: 12px; border: 1px solid #cfd8e3; border-radius: 12px;
   background: #fff; color: var(--text); font-size: 16px; line-height: 23px; }
