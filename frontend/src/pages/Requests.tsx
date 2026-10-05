@@ -6,13 +6,6 @@ type Tab = "leave" | "duty";
 type Request = { id: number; kind?: string; location?: string; start_date: string; end_date: string; reason: string; status: string; approval_state: "pending" | "approved" | "rejected" | "recalled"; approval_message: string; created_at: string };
 const LEAVE_TYPES = [["annual", "Annual leave"], ["sick", "Sick leave"], ["casual", "Casual leave"], ["maternity", "Maternity leave"], ["paternity", "Paternity leave"], ["training", "Training"], ["study", "Study leave"], ["conference", "Conference"], ["official_travel", "Official travel"], ["permission", "Permission"], ["other", "Other"]] as const;
 const PAGE_SIZE = 5;
-const displayDate = (value: string) => value ? new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`)) : "Select date";
-const openNativePicker = (button: HTMLButtonElement) => {
-  const input = button.parentElement?.querySelector("input") as (HTMLInputElement & { showPicker?: () => void }) | null;
-  if (!input) return;
-  if (input.showPicker) input.showPicker();
-  else { input.focus(); input.click(); }
-};
 
 export default function Requests() {
   const [tab, setTab] = useState<Tab>("leave");
@@ -38,7 +31,7 @@ export default function Requests() {
     <div className="card">
       <h3>{tab === "leave" ? "Request leave" : "Request official duty"}</h3>
       {tab === "leave" ? <><label>Leave type</label><select value={leave.kind} onChange={(e) => setLeave({ ...leave, kind: e.target.value })}>{LEAVE_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></> : <><label>Duty location</label><input value={duty.location} onChange={(e) => setDuty({ ...duty, location: e.target.value })} placeholder="e.g. Abuja field site" /></>}
-      <div className="request-date-row"><div><label>Start date</label><div className="date-picker-shell"><button type="button" className={`date-picker-display${form.start_date ? "" : " placeholder"}`} onClick={(e) => openNativePicker(e.currentTarget)}>{displayDate(form.start_date)}</button><input aria-label="Start date" type="date" value={form.start_date} onChange={(e) => tab === "leave" ? setLeave({ ...leave, start_date: e.target.value }) : setDuty({ ...duty, start_date: e.target.value })} /></div></div><div><label>End date</label><div className="date-picker-shell"><button type="button" className={`date-picker-display${form.end_date ? "" : " placeholder"}`} onClick={(e) => openNativePicker(e.currentTarget)}>{displayDate(form.end_date)}</button><input aria-label="End date" type="date" value={form.end_date} onChange={(e) => tab === "leave" ? setLeave({ ...leave, end_date: e.target.value }) : setDuty({ ...duty, end_date: e.target.value })} /></div></div></div>
+      <div className="request-date-row"><div><label>Start date</label><input className="request-date-input" aria-label="Start date" type="date" value={form.start_date} onChange={(e) => tab === "leave" ? setLeave({ ...leave, start_date: e.target.value }) : setDuty({ ...duty, start_date: e.target.value })} /></div><div><label>End date</label><input className="request-date-input" aria-label="End date" type="date" value={form.end_date} onChange={(e) => tab === "leave" ? setLeave({ ...leave, end_date: e.target.value }) : setDuty({ ...duty, end_date: e.target.value })} /></div></div>
       <label>Reason</label><textarea rows={3} value={form.reason} onChange={(e) => tab === "leave" ? setLeave({ ...leave, reason: e.target.value }) : setDuty({ ...duty, reason: e.target.value })} />
       {msg && <div className={`alert ${msg.ok ? "success" : "error"}`}>{msg.text}</div>}<button className="btn primary" disabled={!ready || submit.isPending} onClick={() => submit.mutate()}>{submit.isPending ? "Submitting…" : "Submit request"}</button>
     </div>
