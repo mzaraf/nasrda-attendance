@@ -179,6 +179,29 @@ class OfficialDuty(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class RecurringLeaveSchedule(models.Model):
+    """Long-running part-time arrangement with selected weekly off days."""
+    class Status(models.TextChoices):
+        PENDING = "pending"; APPROVED = "approved"; REJECTED = "rejected"; RECALLED = "recalled"
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="recurring_leave_schedules")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    # ISO weekday numbers: Monday=0 through Sunday=6.
+    off_weekdays = models.JSONField(default=list)
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    director_status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    director_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_director_reviews")
+    director_reviewed_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_approvals")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    recalled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_recalls")
+    recalled_at = models.DateTimeField(null=True, blank=True)
+    recall_return_date = models.DateField(null=True, blank=True)
+    recall_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Holiday(models.Model):
     class Kind(models.TextChoices):
         PUBLIC = "public"; NASRDA = "nasrda"; SPECIAL_WORKING = "special_working"; NON_WORKING = "non_working"

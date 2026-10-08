@@ -68,11 +68,12 @@ def monthly_summary_rows(year, month, department=None, campus=None):
 
     leave_by_date = {day: absence.on_approved_leave(day) for day in working_dates}
     duty_by_date = {day: absence.on_official_duty(day) for day in working_dates}
+    recurring_leave_by_date = {day: absence.on_recurring_leave(day) for day in working_dates}
     rows = [["IPPIS", "Name", "Department", "Days present", "Days absent", "Attendance percentage"]]
     for b in by_user.values():
         u = b["user"]
         present = len(b["present_dates"] & set(working_dates))
-        excused = sum(u.id in (leave_by_date[day] | duty_by_date[day]) and day not in b["present_dates"] for day in working_dates)
+        excused = sum(u.id in (leave_by_date[day] | duty_by_date[day] | recurring_leave_by_date[day]) and day not in b["present_dates"] for day in working_dates)
         eligible_days = max(len(working_dates) - excused, 0)
         absent = max(eligible_days - present, 0)
         percentage = f"{(present / eligible_days * 100):.1f}%" if eligible_days else "—"

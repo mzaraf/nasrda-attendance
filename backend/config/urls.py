@@ -13,6 +13,7 @@ router.register("campuses", v.CampusViewSet)
 router.register("geofences", v.GeofenceViewSet)
 router.register("leave", v.LeaveApprovalViewSet)
 router.register("official-duty", v.OfficialDutyViewSet)
+router.register("recurring-leave", v.RecurringLeaveViewSet)
 router.register("holidays", v.HolidayViewSet)
 router.register("staff", av.StaffViewSet)
 router.register("roles", av.RoleViewSet)
@@ -63,6 +64,7 @@ api = [
     path("attendance/correction/mine/", v.MyCorrections.as_view()),
     path("staff/leave/", v.MyLeave.as_view()),
     path("staff/official-duty/", v.MyOfficialDuty.as_view()),
+    path("staff/recurring-leave/", v.MyRecurringLeave.as_view()),
 
     path("admin/staff/import/preview/", av.StaffImportPreview.as_view()),
     path("admin/staff/import/commit/", av.StaffImportCommit.as_view()),

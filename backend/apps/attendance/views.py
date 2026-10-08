@@ -27,10 +27,10 @@ from apps.devices.models import DeviceRemovalRequest, RegisteredDevice
 from apps.org.models import Campus, Geofence
 from apps.org.models import Department
 from . import absence, rules, services, totp
-from .models import (ActivityAttachment, ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty)
+from .models import (ActivityAttachment, ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule)
 from .serializers import (ActivitySerializer, AttendanceRecordSerializer, CampusSerializer,
                           CategorySerializer, GeofenceSerializer, LocationInputSerializer,
-                          CorrectionSerializer, HolidaySerializer, LeaveSerializer, OfficialDutySerializer)
+                          CorrectionSerializer, HolidaySerializer, LeaveSerializer, OfficialDutySerializer, RecurringLeaveSerializer)
 
 
 # ---------- Auth ----------
@@ -390,7 +390,7 @@ class AdminDashboard(APIView):
         total, present = staff.count(), recs.count()
         checked_out = recs.filter(check_out_at__isnull=False).count()
         on_duty_ids = absence.on_official_duty(today) & set(staff.values_list("id", flat=True))
-        on_leave_ids = absence.on_approved_leave(today) & set(staff.values_list("id", flat=True))
+        on_leave_ids = (absence.on_approved_leave(today) | absence.on_recurring_leave(today)) & set(staff.values_list("id", flat=True))
         # Approved leave/duty removes a person from absence only when they have not
         # already checked in; avoid subtracting an already-present person twice.
         present_ids = set(recs.values_list("user_id", flat=True))
@@ -570,6 +570,33 @@ class MyOfficialDuty(APIView):
         return Response(OfficialDutySerializer(rec).data, status=201)
 
 
+class MyRecurringLeave(APIView):
+    """Staff-requested long-running part-time/recurring leave arrangement."""
+    def get(self, request):
+        schedules = request.user.recurring_leave_schedules.select_related("director_reviewed_by", "approved_by").order_by("-created_at")
+        return Response(RecurringLeaveSerializer(schedules, many=True).data)
+
+    def post(self, request):
+        active_kind, active = absence.active_approved_absence(request.user)
+        if active:
+            raise DomainError(
+                "ACTIVE_REQUEST_EXISTS",
+                f"You have approved {active_kind} until {active.end_date:%d %b %Y}. You cannot submit another leave or official-duty request until it ends or you are recalled.",
+                409,
+            )
+        serializer = RecurringLeaveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rec = serializer.save(user=request.user)
+        log(request, request.user, "recurring_leave.requested", "Part-time recurring leave schedule", new={"off_weekdays": rec.off_weekdays})
+        send_email(
+            "Recurring leave request awaiting your approval",
+            f"{request.user.get_full_name()} has requested a recurring leave arrangement from "
+            f"{rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y}. Please review it in NASRDA Staff Attendance.",
+            notification_recipients("department_request_review", request.user.department),
+        )
+        return Response(RecurringLeaveSerializer(rec).data, status=201)
+
+
 class DepartmentReviewQueue(APIView):
     """First-stage review: Directors see only pending requests from their department."""
     permission_classes = [IsAuthenticated, HasAnyPerm]
@@ -581,17 +608,22 @@ class DepartmentReviewQueue(APIView):
         corrections = AttendanceCorrection.objects.filter(status="pending", director_status="pending", requested_by__department_id=request.user.department_id).select_related("requested_by")
         leave = LeaveRecord.objects.filter(status="pending", director_status="pending", user__department_id=request.user.department_id).select_related("user")
         duty = OfficialDuty.objects.filter(status="pending", director_status="pending", user__department_id=request.user.department_id).select_related("user")
+        recurring_leave = RecurringLeaveSchedule.objects.filter(status="pending", director_status="pending", user__department_id=request.user.department_id).select_related("user")
         today = timezone.localdate()
         active_leave = LeaveRecord.objects.filter(status="approved", director_status="approved", user__department_id=request.user.department_id,
                                                   start_date__lte=today, end_date__gte=today, recall_return_date__isnull=True).select_related("user")
         active_duty = OfficialDuty.objects.filter(status="approved", director_status="approved", user__department_id=request.user.department_id,
                                                   start_date__lte=today, end_date__gte=today, recall_return_date__isnull=True).select_related("user")
+        active_recurring_leave = RecurringLeaveSchedule.objects.filter(status="approved", director_status="approved", user__department_id=request.user.department_id,
+                                                                        start_date__lte=today, end_date__gte=today, recall_return_date__isnull=True).select_related("user")
         return Response(
             [{"id": x.id, "type": "correction", "staff": x.requested_by.get_full_name(), "detail": f"{x.field} → {x.requested_value}: {x.reason}", "created_at": x.created_at} for x in corrections] +
             [{"id": x.id, "type": "leave", "staff": x.user.get_full_name(), "detail": f"{x.kind}: {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in leave] +
             [{"id": x.id, "type": "official-duty", "staff": x.user.get_full_name(), "detail": f"{x.location}: {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in duty] +
+            [{"id": x.id, "type": "recurring-leave", "staff": x.user.get_full_name(), "detail": f"Recurring leave ({', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day] for day in x.off_weekdays)} off): {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in recurring_leave] +
             [{"id": x.id, "type": "leave", "staff": x.user.get_full_name(), "detail": f"Approved leave: {x.kind} · {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_leave] +
             [{"id": x.id, "type": "official-duty", "staff": x.user.get_full_name(), "detail": f"Approved official duty: {x.location} · {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_duty]
+            + [{"id": x.id, "type": "recurring-leave", "staff": x.user.get_full_name(), "detail": f"Approved recurring leave ({', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day] for day in x.off_weekdays)} off): {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_recurring_leave]
         )
 
 
@@ -600,7 +632,7 @@ class DepartmentReviewDecide(APIView):
     required_perms = ["accounts.department_request_review"]
 
     def post(self, request, kind, pk):
-        models = {"correction": (AttendanceCorrection, "requested_by"), "leave": (LeaveRecord, "user"), "official-duty": (OfficialDuty, "user")}
+        models = {"correction": (AttendanceCorrection, "requested_by"), "leave": (LeaveRecord, "user"), "official-duty": (OfficialDuty, "user"), "recurring-leave": (RecurringLeaveSchedule, "user")}
         if kind not in models:
             raise DomainError("INVALID", "Unknown request type.")
         model, owner = models[kind]
@@ -759,6 +791,77 @@ class OfficialDutyViewSet(viewsets.ModelViewSet):
         rec.save(update_fields=["status", "recalled_by", "recalled_at", "recall_return_date", "recall_reason"])
         log(request, request.user, "official_duty.recalled", f"{rec.user.get_full_name()} recalled from official duty", new={"official_duty": rec.pk, "return_date": str(return_date), "reason": reason})
         return Response(OfficialDutySerializer(rec).data)
+
+
+class RecurringLeaveViewSet(viewsets.ModelViewSet):
+    """Administrator approval and Director-scoped recall of part-time leave schedules."""
+    queryset = RecurringLeaveSchedule.objects.select_related("user").order_by("-created_at")
+    serializer_class = RecurringLeaveSerializer
+    permission_classes = [IsAuthenticated, HasAnyPerm]
+    required_perms = ["accounts.attendance_approve"]
+    http_method_names = ["get", "post"]
+    pagination_class = None
+
+    def get_permissions(self):
+        if self.action == "recall" or (self.action == "list" and self.request.query_params.get("include_active") == "true"):
+            return [IsAuthenticated(), CanRecallDepartmentRequest()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        recall_flow = self.action == "recall" or self.request.query_params.get("include_active") == "true"
+        if recall_flow and not self.request.user.has_perm("accounts.attendance_approve"):
+            qs = super().get_queryset().filter(user__department_id=self.request.user.department_id, director_status="approved")
+        else:
+            qs = super().get_queryset().filter(user__in=scoped_staff(self.request.user), director_status="approved")
+        if self.request.query_params.get("include_active") == "true":
+            # Include approved future arrangements as well: a Director/Admin may end
+            # one before it begins, and the schedule becomes recalled immediately.
+            qs = qs.filter(Q(status="pending") | Q(status="approved", end_date__gte=timezone.localdate(), recall_return_date__isnull=True))
+        elif status_value := self.request.query_params.get("status"):
+            qs = qs.filter(status=status_value)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def decide(self, request, pk=None):
+        rec = self.get_object()
+        decision = request.data.get("decision")
+        if decision not in ("approved", "rejected"):
+            raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
+        rec.status, rec.approved_by, rec.approved_at = decision, request.user, timezone.now()
+        rec.save(update_fields=["status", "approved_by", "approved_at"])
+        log(request, request.user, "recurring_leave.decided", decision, new={"recurring_leave": rec.pk})
+        send_email(
+            f"Your recurring leave request was {decision}",
+            f"Your recurring leave arrangement from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}.",
+            [rec.user.email],
+        )
+        return Response(RecurringLeaveSerializer(rec).data)
+
+    @action(detail=True, methods=["post"])
+    def recall(self, request, pk=None):
+        rec = self.get_object()
+        try:
+            return_date = date.fromisoformat(str(request.data.get("return_date", "")))
+        except ValueError:
+            raise DomainError("INVALID_RECALL_DATE", "Choose a valid return-to-duty date.")
+        reason = str(request.data.get("reason", "")).strip()
+        today = timezone.localdate()
+        if not reason:
+            raise DomainError("RECALL_REASON_REQUIRED", "Provide a reason for the recall.")
+        if rec.status != "approved" or rec.end_date < today or rec.recall_return_date:
+            raise DomainError("RECALL_UNAVAILABLE", "Only an unexpired, approved recurring leave schedule can be recalled.", 409)
+        if return_date < today or return_date > rec.end_date:
+            raise DomainError("INVALID_RECALL_DATE", "The return-to-duty date must be today through the schedule end date.")
+        rec.status, rec.recalled_by, rec.recalled_at = "recalled", request.user, timezone.now()
+        rec.recall_return_date, rec.recall_reason = return_date, reason
+        rec.save(update_fields=["status", "recalled_by", "recalled_at", "recall_return_date", "recall_reason"])
+        log(request, request.user, "recurring_leave.recalled", f"{rec.user.get_full_name()} recalled from recurring leave", new={"recurring_leave": rec.pk, "return_date": str(return_date), "reason": reason})
+        send_email(
+            "Your recurring leave arrangement was recalled",
+            f"Your recurring leave arrangement has been recalled. Return to duty from {return_date:%d %b %Y}. Reason: {reason}",
+            [rec.user.email],
+        )
+        return Response(RecurringLeaveSerializer(rec).data)
 
 
 class HolidayViewSet(viewsets.ModelViewSet):

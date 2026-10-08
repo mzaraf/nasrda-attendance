@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from apps.org.models import Campus, Department, Geofence
 from .geo import haversine_m
-from .models import ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty
+from .models import ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule
 
 
 class LocationInputSerializer(serializers.Serializer):
@@ -201,6 +201,42 @@ class OfficialDutySerializer(serializers.ModelSerializer):
         if d["end_date"] < d["start_date"]:
             raise serializers.ValidationError("End date must be on or after the start date.")
         return d
+
+
+class RecurringLeaveSerializer(serializers.ModelSerializer):
+    staff_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    approval_state = serializers.SerializerMethodField()
+    approval_message = serializers.SerializerMethodField()
+
+    @staticmethod
+    def _name(user):
+        return user.get_full_name().strip() if user and user.get_full_name().strip() else None
+
+    class Meta:
+        model = RecurringLeaveSchedule
+        fields = ["id", "staff_name", "start_date", "end_date", "off_weekdays", "reason", "status", "director_status", "recall_return_date", "recall_reason", "approval_state", "approval_message", "created_at"]
+        read_only_fields = ["status", "director_status"]
+
+    def validate(self, d):
+        if d["end_date"] < d["start_date"]:
+            raise serializers.ValidationError("End date must be on or after the start date.")
+        days = d.get("off_weekdays", [])
+        if not days or any(not isinstance(day, int) or day < 0 or day > 6 for day in days):
+            raise serializers.ValidationError({"off_weekdays": "Select one or more recurring off days."})
+        return d
+
+    def get_approval_state(self, obj):
+        if obj.director_status == "rejected" or obj.status == "rejected": return "rejected"
+        if obj.status == "recalled": return "recalled"
+        if obj.status == "approved": return "approved"
+        return "pending"
+
+    def get_approval_message(self, obj):
+        if obj.director_status == "rejected": return f"Rejected by {self._name(obj.director_reviewed_by) or 'the Director'}"
+        if obj.status == "rejected": return f"Rejected by {self._name(obj.approved_by) or 'the Administrator'}"
+        if obj.status == "recalled": return f"Recalled by {self._name(obj.recalled_by) or 'the Administrator'}; return to duty from {obj.recall_return_date:%d %b %Y}. Reason: {obj.recall_reason}"
+        if obj.status == "approved": return f"Approved by {self._name(obj.approved_by) or 'the Administrator'}"
+        return "Awaiting Administrator's Approval" if obj.director_status == "approved" else "Awaiting Director's Approval"
 
 
 class HolidaySerializer(serializers.ModelSerializer):

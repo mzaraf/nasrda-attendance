@@ -3,10 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errorOf } from "../../api";
 import { useAuth } from "../../auth";
 
-type Tab = "corrections" | "leave" | "official-duty" | "review" | "devices" | "department-review";
-type RecallTarget = { id: number; kind: "leave" | "official-duty"; staff: string; endDate: string };
+type Tab = "corrections" | "leave" | "official-duty" | "recurring-leave" | "review" | "devices" | "department-review";
+type RecallTarget = { id: number; kind: "leave" | "official-duty" | "recurring-leave"; staff: string; endDate: string };
 const TABS: [Tab, string][] = [/* Temporarily disabled: ["corrections", "Corrections"], */ ["leave", "Leave"],
-  ["official-duty", "Official duty"], ["review", "Flagged for review"], ["devices", "Device removals"], ["department-review", "Department requests"]];
+  ["official-duty", "Official duty"], ["recurring-leave", "Recurring leave"], ["review", "Flagged for review"], ["devices", "Device removals"], ["department-review", "Department requests"]];
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
 
 export default function Approvals() {
@@ -25,6 +25,7 @@ export default function Approvals() {
   const listUrl = tab === "corrections" ? "/admin/corrections/"
     : tab === "leave" ? "/admin/leave/?include_active=true"
     : tab === "official-duty" ? "/admin/official-duty/?include_active=true"
+    : tab === "recurring-leave" ? "/admin/recurring-leave/?include_active=true"
     : tab === "review" ? "/admin/review-queue/" : tab === "department-review" ? "/admin/department-review/" : "/admin/device-removals/";
   const { data = [] } = useQuery({ queryKey: [tab], queryFn: () => api.get(listUrl).then((r) => r.data) });
   const decide = useMutation({
@@ -32,6 +33,7 @@ export default function Approvals() {
       const url = tab === "corrections" ? `/admin/corrections/${id}/decide/`
         : tab === "leave" ? `/admin/leave/${id}/decide/`
         : tab === "official-duty" ? `/admin/official-duty/${id}/decide/`
+        : tab === "recurring-leave" ? `/admin/recurring-leave/${id}/decide/`
         : tab === "review" ? `/admin/review-queue/${id}/decide/` : tab === "department-review" ? `/admin/department-review/${type}/${id}/decide/` : `/admin/device-removals/${id}/decide/`;
       return api.post(url, { decision });
     }, onSuccess: () => qc.invalidateQueries({ queryKey: [tab] }),
@@ -41,7 +43,7 @@ export default function Approvals() {
     onSuccess: () => { setRecallTarget(null); setRecallReason(""); qc.invalidateQueries({ queryKey: [tab] }); },
     onError: (e) => setRecallError(errorOf(e).message),
   });
-  const openRecall = (item: any, kind: "leave" | "official-duty") => {
+  const openRecall = (item: any, kind: "leave" | "official-duty" | "recurring-leave") => {
     setRecallError(""); setRecallReason(""); setReturnDate(today());
     setRecallTarget({ id: item.id, kind, staff: item.staff_name ?? item.staff, endDate: item.end_date });
   };
@@ -51,13 +53,14 @@ export default function Approvals() {
     <div className="row">{tabs.map(([k, label]) => <button key={k} className={`btn ${tab === k ? "primary" : ""}`} onClick={() => setTab(k)}>{label}</button>)}</div>
     {data.length === 0 && <p className="muted">Nothing pending here.</p>}
     {data.map((item: any) => {
-      const recallable = (tab === "leave" || tab === "official-duty") ? item.status === "approved" : !!item.recallable;
-      const kind = tab === "official-duty" || item.type === "official-duty" ? "official-duty" : "leave";
+      const recallable = (tab === "leave" || tab === "official-duty" || tab === "recurring-leave") ? item.status === "approved" : !!item.recallable;
+      const kind = tab === "recurring-leave" || item.type === "recurring-leave" ? "recurring-leave" : tab === "official-duty" || item.type === "official-duty" ? "official-duty" : "leave";
       return <div className="row-card" key={`${item.type ?? tab}-${item.id}`}>
         <div><b>{item.staff_name ?? item.staff}</b><small>
           {tab === "corrections" && `${item.field} → ${new Date(item.requested_value).toLocaleString()} — ${item.reason}`}
           {tab === "leave" && `${item.kind} · ${item.start_date} → ${item.end_date} — ${item.reason}${item.status === "approved" ? " · Approved" : ""}`}
           {tab === "official-duty" && `${item.location} · ${item.start_date} → ${item.end_date} — ${item.reason}${item.status === "approved" ? " · Approved" : ""}`}
+          {tab === "recurring-leave" && `Off: ${(item.off_weekdays ?? []).map((day: number) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day]).join(", ")} · ${item.start_date} → ${item.end_date} — ${item.reason}${item.status === "approved" ? " · Approved" : ""}`}
           {tab === "review" && `${item.date} · ${item.campus} · flags: ${item.flags.join(", ") || "none"}`}
           {tab === "devices" && `${item.device_label} · IPPIS ${item.ippis} · requested ${new Date(item.requested_at).toLocaleString()}`}
           {tab === "department-review" && item.detail}

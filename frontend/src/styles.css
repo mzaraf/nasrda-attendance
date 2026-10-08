@@ -149,6 +149,12 @@ input:-webkit-autofill { -webkit-text-fill-color: var(--text) !important;
 .request-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
 .request-pagination > div { display: flex; gap: 8px; }
 .request-pagination .btn { width: auto; min-width: 88px; margin: 0; padding: 8px 12px; }
+.request-tabs { gap: 10px; flex-wrap: wrap; }
+.request-tabs .btn { flex: 1 1 160px; }
+.form-help { margin: -2px 0 8px; font-size: 13px; }
+.weekday-options { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.weekday-option { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid #cfd8e3; border-radius: 9px; font-size: 14px; font-weight: 600; }
+.weekday-option input { width: 16px; height: 16px; margin: 0; }
 .staff-toggle { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
 .staff-toggle input { width: 20px; height: 20px; flex: 0 0 auto; }
 .holiday-add { width: auto; margin: 12px 0 20px; }
