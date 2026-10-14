@@ -34,8 +34,8 @@ export default function History() {
       </div>
       <div className="card history-summary">
         <div><small>Days present</small><b>{data.length}</b></div>
-        <div><small>Late</small><b>{late}</b></div>
         <div><small>Early</small><b>{early}</b></div>
+        <div><small>Late</small><b>{late}</b></div>
       </div>
       {isLoading && <p className="muted">Loading…</p>}
       {!isLoading && data.length === 0 && <p className="muted">No records for this month.</p>}
