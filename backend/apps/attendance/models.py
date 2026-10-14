@@ -1,6 +1,42 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
+import uuid
+
+
+class FaceProfile(models.Model):
+    """Encrypted facial template only; no permanent enrolment photograph is retained."""
+    class Status(models.TextChoices):
+        NOT_ENROLLED = "not_enrolled", "Not enrolled"
+        ACTIVE = "active", "Active"
+        REVOKED = "revoked", "Revoked"
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="face_profile")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NOT_ENROLLED)
+    template_encrypted = models.TextField(blank=True)
+    enrolled_at = models.DateTimeField(null=True, blank=True)
+    last_verified_at = models.DateTimeField(null=True, blank=True)
+    enrollment_user_agent = models.CharField(max_length=300, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class FaceVerification(models.Model):
+    """A short-lived, single-use result tied to either check-in or check-out."""
+    class Status(models.TextChoices):
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="face_verifications")
+    action = models.CharField(max_length=12, choices=[("check-in", "Check in"), ("check-out", "Check out")])
+    status = models.CharField(max_length=10, choices=Status.choices)
+    liveness_passed = models.BooleanField(default=False)
+    match_distance = models.FloatField(null=True, blank=True)
+    failure_reason = models.CharField(max_length=160, blank=True)
+    challenge_nonce = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class AttendanceRecord(models.Model):

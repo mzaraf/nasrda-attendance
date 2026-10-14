@@ -1,5 +1,6 @@
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+import secrets
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.db.models import Q
@@ -22,12 +23,10 @@ from apps.audit.services import log
 from apps.core.errors import DomainError
 from apps.core.emailing import send_email
 from apps.core.models import get_setting
-from apps.devices import passkeys
-from apps.devices.models import DeviceRemovalRequest, RegisteredDevice
 from apps.org.models import Campus, Geofence
 from apps.org.models import Department
-from . import absence, rules, services, totp
-from .models import (ActivityAttachment, ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule)
+from . import absence, face, rules, services, totp
+from .models import (ActivityAttachment, ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule, FaceProfile, FaceVerification)
 from .serializers import (ActivitySerializer, AttendanceRecordSerializer, CampusSerializer,
                           CategorySerializer, GeofenceSerializer, LocationInputSerializer,
                           CorrectionSerializer, HolidaySerializer, LeaveSerializer, OfficialDutySerializer, RecurringLeaveSerializer)
@@ -161,8 +160,8 @@ def me_payload(user):
         "can_manage_geofence": user.has_perm("accounts.geofence_manage"),
         "can_manage_roles": user.has_perm("accounts.settings_manage"),
         "can_review_department_requests": user.has_perm("accounts.department_request_review"),
-        "has_device": user.devices.filter(status="active").exists(),
-        "require_passkey": get_setting("require_passkey"),
+        "face_enrolled": FaceProfile.objects.filter(user=user, status="active").exists(),
+        "require_face_verification": get_setting("require_face_verification"),
         "mfa_enabled": user.mfa_enabled,
         "mfa_configured": user.mfa_confirmed,
     }
@@ -178,92 +177,68 @@ class MeView(APIView):
         return Response({"authenticated": True, **me_payload(request.user)})
 
 
-# ---------- Devices ----------
-class DeviceRegisterOptions(APIView):
-    def post(self, request):
-        return Response(passkeys.registration_options(request.user))
-
-
-class DeviceRegisterVerify(APIView):
-    def post(self, request):
-        device = passkeys.finish_registration(
-            request.user, request.data.get("credential"), request.data.get("label", "My device"),
-            request.META.get("HTTP_USER_AGENT", ""))
-        log(request, request.user, "device.registered", device.label, new={"status": device.status})
-        return Response({
-            "id": device.pk, "label": device.label, "status": device.status,
-            "registered_at": device.registered_at, "last_seen_at": device.last_seen_at,
-            "removal_pending": False,
-        }, status=201)
-
-
-class DeviceList(APIView):
-    def get(self, request):
-        devices = request.user.devices.prefetch_related("removal_request").all()
-        return Response([{
-            "id": d.id, "label": d.label, "status": d.status, "registered_at": d.registered_at,
-            "last_seen_at": d.last_seen_at,
-            "removal_pending": hasattr(d, "removal_request") and d.removal_request.status == "pending",
-        } for d in devices])
-
-
-class DeviceRevoke(APIView):
-    def post(self, request, pk):
-        d = request.user.devices.filter(pk=pk).first()      # object-level: own devices only
-        if not d:
-            raise DomainError("NOT_FOUND", "Device not found.", 404)
-        if d.status != "active":
-            raise DomainError("DEVICE_INACTIVE", "Only an active device can be removed.", 409)
-        removal, created = DeviceRemovalRequest.objects.get_or_create(device=d, defaults={"status": "pending"})
-        if not created and removal.status == "pending":
-            raise DomainError("REMOVAL_ALREADY_REQUESTED", "Your device removal is already awaiting administrator approval.", 409)
-        if not created:
-            removal.status, removal.decided_by, removal.decided_at = "pending", None, None
-            removal.save(update_fields=["status", "decided_by", "decided_at"])
-        log(request, request.user, "device.removal_requested", d.label)
-        return Response({"status": "pending"}, status=202)
-
-
-class DeviceRemovalQueue(APIView):
-    permission_classes = [IsAuthenticated, HasAnyPerm]
-    required_perms = ["accounts.device_manage"]
-
-    def get(self, request):
-        qs = DeviceRemovalRequest.objects.filter(status="pending").select_related("device", "device__user").order_by("requested_at")
-        return Response([{
-            "id": item.id, "staff": item.device.user.get_full_name(), "ippis": item.device.user.ippis_number,
-            "device_label": item.device.label, "requested_at": item.requested_at,
-        } for item in qs])
-
-
-class DeviceRemovalDecide(APIView):
-    permission_classes = [IsAuthenticated, HasAnyPerm]
-    required_perms = ["accounts.device_manage"]
-
-    def post(self, request, pk):
-        item = DeviceRemovalRequest.objects.select_related("device", "device__user").filter(pk=pk, status="pending").first()
-        if not item:
-            raise DomainError("NOT_FOUND", "Device removal request not found or already decided.", 404)
-        decision = request.data.get("decision")
-        if decision not in ("approved", "rejected"):
-            raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
-        item.status, item.decided_by, item.decided_at = decision, request.user, timezone.now()
-        item.save(update_fields=["status", "decided_by", "decided_at"])
-        if decision == "approved":
-            item.device.status = "revoked"
-            item.device.save(update_fields=["status"])
-        log(request, request.user, f"device.removal_{decision}", item.device.label,
-            new={"request": item.pk, "staff": item.device.user.ippis_number})
-        return Response({"status": decision})
-
-
 # ---------- Attendance ----------
-class Challenge(APIView):
-    """Fresh WebAuthn challenge, requested right before check-in/out."""
+class FaceStatus(APIView):
+    def get(self, request):
+        profile = FaceProfile.objects.filter(user=request.user).first()
+        return Response({
+            "status": profile.status if profile else "not_enrolled",
+            "enrolled_at": profile.enrolled_at if profile else None,
+            "last_verified_at": profile.last_verified_at if profile else None,
+        })
+
+
+class FaceEnroll(APIView):
     def post(self, request):
-        if not get_setting("require_passkey"):
-            return Response({"passkey_required": False})
-        return Response({"passkey_required": True, **passkeys.authentication_options(request.user)})
+        profile, _ = FaceProfile.objects.get_or_create(user=request.user)
+        if profile.status == "active":
+            raise DomainError("FACE_ALREADY_ENROLLED", "Face verification is already active. Ask an administrator to reset it before enrolling again.", 409)
+        profile.template_encrypted = face.enroll(request.data.get("images", []))
+        profile.status, profile.enrolled_at = "active", timezone.now()
+        profile.enrollment_user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
+        profile.save(update_fields=["template_encrypted", "status", "enrolled_at", "enrollment_user_agent", "updated_at"])
+        log(request, request.user, "face.enrolled", "Self-hosted face verification enrolled")
+        return Response({"status": profile.status, "enrolled_at": profile.enrolled_at}, status=201)
+
+
+class FaceChallenge(APIView):
+    """Creates a short-lived, action-bound browser camera liveness challenge."""
+    def post(self, request):
+        action_name = request.data.get("action")
+        if action_name not in ("check-in", "check-out"):
+            raise DomainError("INVALID_FACE_ACTION", "Face verification is only available for check-in or check-out.")
+        actions = ["Look straight ahead", "Turn your head slightly left", "Turn your head slightly right"]
+        secrets.SystemRandom().shuffle(actions)
+        challenge = {"nonce": secrets.token_urlsafe(32), "action": action_name, "actions": actions, "expires": (timezone.now() + timedelta(minutes=2)).timestamp()}
+        request.session["face_challenge"] = challenge
+        return Response({"challenge_id": challenge["nonce"], "steps": actions, "expires_in_seconds": 120})
+
+
+class FaceVerify(APIView):
+    def post(self, request):
+        challenge = request.session.get("face_challenge")
+        challenge_id = request.data.get("challenge_id", "")
+        if not challenge or challenge.get("nonce") != challenge_id or challenge.get("expires", 0) < timezone.now().timestamp():
+            raise DomainError("FACE_CHALLENGE_EXPIRED", "Face-verification session expired. Start again.", 409)
+        profile = FaceProfile.objects.filter(user=request.user, status="active").first()
+        if not profile:
+            raise DomainError("FACE_ENROLLMENT_REQUIRED", "Set up face verification before recording attendance.", 409)
+        request.session.pop("face_challenge", None)
+        action_name = challenge["action"]
+        try:
+            distance = face.verify(request.data.get("images", []), profile.template_encrypted)
+        except DomainError as error:
+            error_code = str(error.detail.get("code", "FACE_VERIFICATION_FAILED"))
+            FaceVerification.objects.create(user=request.user, action=action_name, status="failed", liveness_passed=False,
+                                            failure_reason=error_code[:160], challenge_nonce=challenge_id,
+                                            expires_at=timezone.now() + timedelta(minutes=2))
+            log(request, request.user, "face.verification_failed", error_code)
+            raise
+        result = FaceVerification.objects.create(user=request.user, action=action_name, status="success", liveness_passed=True,
+                                                 match_distance=distance, challenge_nonce=challenge_id,
+                                                 expires_at=timezone.now() + timedelta(minutes=2))
+        log(request, request.user, "face.verified", action_name, new={"verification": str(result.pk), "distance": round(distance, 4)})
+        return Response({"verification_id": str(result.pk), "expires_in_seconds": 120})
 
 
 class CheckIn(APIView):

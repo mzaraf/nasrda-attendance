@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { startAuthentication } from "@simplewebauthn/browser";
 import { Link } from "react-router-dom";
 import { api, errorOf } from "../api";
 import type { ApiError } from "../api";
@@ -8,6 +7,7 @@ import { useAuth } from "../auth";
 import { getPosition } from "../lib/geo";
 import { useOnline } from "../lib/useOnline";
 import ActivitySheet from "../components/ActivitySheet";
+import FaceCapture from "../components/FaceCapture";
 
 const fmt = (iso?: string | null) =>
   iso ? new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "—";
@@ -21,6 +21,7 @@ export default function Home() {
   const [err, setErr] = useState<ApiError | null>(null);
   const [success, setSuccess] = useState("");
   const [sheet, setSheet] = useState(false);
+  const [faceAction, setFaceAction] = useState<"check-in" | "check-out" | null>(null);
 
   const { data } = useQuery({
     queryKey: ["today"],
@@ -32,34 +33,26 @@ export default function Home() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const dateStr = new Intl.DateTimeFormat("en-NG", { dateStyle: "full", timeZone: "Africa/Lagos" }).format(new Date());
 
-  // Shared verification pipeline: online → GPS → biometric → server (which re-verifies everything).
-  async function attend(kind: "check-in" | "check-out") {
+  async function attend(kind: "check-in" | "check-out", faceVerificationId?: string) {
     setErr(null); setSuccess("");
     try {
       if (!online) throw { code: "OFFLINE", message: "Internet connection is required to verify and record attendance." };
       setBusy("Getting your location…");
       const fix = await getPosition();
-      setBusy("Verifying your device…");
-      const { data: opts } = await api.post("/attendance/challenge/");
-      let assertion;
-      if (opts.passkey_required) {
-        const { passkey_required, ...optionsJSON } = opts;
-        assertion = await startAuthentication({ optionsJSON });   // fingerprint / Face ID prompt
-      }
       setBusy("Recording attendance…");
-      await api.post(`/attendance/${kind}/`, { ...fix, assertion });
+      await api.post(`/attendance/${kind}/`, { ...fix, face_verification_id: faceVerificationId });
       setSuccess(kind === "check-in" ? "CHECK-IN SUCCESSFUL" : "CHECK-OUT SUCCESSFUL");
       setSheet(false);
       qc.invalidateQueries({ queryKey: ["today"] });
     } catch (e: any) {
-      if (e?.name === "NotAllowedError") setErr({ code: "CANCELLED", message: "Biometric verification was cancelled." });
+      if (e?.name === "NotAllowedError") setErr({ code: "CANCELLED", message: "Face verification was cancelled." });
       else setErr(e?.code && e?.message && !e.response ? e : errorOf(e));
     } finally { setBusy(""); }
   }
 
   const rec = data?.record;
   const state: string = data?.state ?? "not_checked_in";
-  const needsDevice = me?.require_passkey && !me?.has_device;
+  const needsFace = me?.require_face_verification && !me?.face_enrolled;
   const checkoutAfter = data?.checkout_allowed_after ?? "16:30";
   const checkinClosesAfter = data?.checkin_closes_after ?? "12:00";
   const checkinOpen = data?.checkin_open ?? true;
@@ -82,9 +75,9 @@ export default function Home() {
 
           {!online && <div className="alert warn">You're offline. Attendance needs an internet connection.</div>}
           {nonWorkingReason && <div className="alert success">Attendance is not required today. {nonWorkingReason}</div>}
-          {needsDevice && (
+          {needsFace && (
             <div className="alert warn">
-              Register this device to mark attendance. <Link to="/device">Set up now →</Link>
+              Set up face verification to mark attendance. <Link to="/face">Set up now →</Link>
             </div>
           )}
           {me?.mfa_enabled && !me?.mfa_configured && (
@@ -97,14 +90,14 @@ export default function Home() {
 
           <div className="action">
             {state === "not_checked_in" && !nonWorkingReason && (
-              <button className="bigbtn in" disabled={!!busy || needsDevice || !checkinOpen} onClick={() => attend("check-in")}>
+              <button className="bigbtn in" disabled={!!busy || needsFace || !checkinOpen} onClick={() => setFaceAction("check-in")}>
                 {busy || "CHECK IN"}
               </button>
             )}
             {state === "not_checked_in" && !nonWorkingReason && !checkinOpen && <small>Check-in closed at {checkinClosesAfter}. You are marked absent for today.</small>}
             {state === "not_checked_in" && nonWorkingReason && <div className="done">Office closed today</div>}
             {state === "checked_in" && (
-              <button className="bigbtn out" disabled={!!busy || !checkoutOpen} onClick={() => setSheet(true)}>
+              <button className="bigbtn out" disabled={!!busy || needsFace || !checkoutOpen} onClick={() => setSheet(true)}>
                 {busy || "CHECK OUT"}
               </button>
             )}
@@ -127,9 +120,10 @@ export default function Home() {
         <ActivitySheet
           busy={!!busy} error={err?.message}
           onClose={() => setSheet(false)}
-          onSubmit={() => attend("check-out")}
+          onSubmit={() => { setSheet(false); setFaceAction("check-out"); }}
         />
       )}
+      {faceAction && <FaceCapture mode="verify" action={faceAction} onClose={() => setFaceAction(null)} onComplete={(verificationId) => { setFaceAction(null); void attend(faceAction, verificationId); }} />}
     </div>
   );
 }

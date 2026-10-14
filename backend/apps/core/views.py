@@ -11,8 +11,8 @@ from .models import DEFAULTS, SystemSetting, get_setting
 
 
 TIME_KEYS = {"work_start", "work_end", "checkin_late_after", "checkin_closes_after", "checkout_allowed_after", "nursing_mother_checkout_after"}
-INTEGER_KEYS = {"grace_minutes", "overtime_after_minutes", "min_accuracy_m", "max_devices", "max_speed_mps"}
-BOOLEAN_KEYS = {"require_passkey", "device_approval_required"}
+INTEGER_KEYS = {"grace_minutes", "overtime_after_minutes", "min_accuracy_m", "max_speed_mps"}
+BOOLEAN_KEYS = {"require_face_verification"}
 
 
 class SystemSettingsView(APIView):

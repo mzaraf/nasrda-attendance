@@ -98,6 +98,16 @@ class StaffViewSet(viewsets.ModelViewSet):
         log(request, request.user, "staff.devices_reset", f"{u.ippis_number}: {n} device(s)")
         return Response({"revoked": n})
 
+    @action(detail=True, methods=["post"])
+    def reset_face(self, request, pk=None):
+        from apps.attendance.models import FaceProfile
+        u = self.get_object()
+        profile, _ = FaceProfile.objects.get_or_create(user=u)
+        profile.status, profile.template_encrypted = "revoked", ""
+        profile.save(update_fields=["status", "template_encrypted", "updated_at"])
+        log(request, request.user, "staff.face_reset", f"Reset face verification for {u.ippis_number}")
+        return Response({"ok": True})
+
 
 class RoleViewSet(viewsets.ModelViewSet):
     """Custom Django groups used as staff roles."""

@@ -3,22 +3,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, errorOf } from "../../api";
 import { useAuth } from "../../auth";
 
-type Tab = "corrections" | "leave" | "official-duty" | "recurring-leave" | "review" | "devices" | "department-review";
+type Tab = "corrections" | "leave" | "official-duty" | "recurring-leave" | "review" | "department-review";
 type RecallTarget = { id: number; kind: "leave" | "official-duty" | "recurring-leave"; staff: string; endDate: string };
 const TABS: [Tab, string][] = [/* Temporarily disabled: ["corrections", "Corrections"], */ ["leave", "Leave"],
-  ["official-duty", "Official duty"], ["recurring-leave", "Recurring leave"], ["review", "Flagged for review"], ["devices", "Device removals"], ["department-review", "Department requests"]];
+  ["official-duty", "Official duty"], ["recurring-leave", "Recurring leave"], ["review", "Flagged for review"], ["department-review", "Department requests"]];
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
 
 export default function Approvals() {
   const { me } = useAuth();
-  const [tab, setTab] = useState<Tab>(me?.can_approve ? "leave" : me?.can_review_department_requests ? "department-review" : "devices");
+  const [tab, setTab] = useState<Tab>(me?.can_approve ? "leave" : "department-review");
   const [recallTarget, setRecallTarget] = useState<RecallTarget | null>(null);
   const [returnDate, setReturnDate] = useState(today());
   const [recallReason, setRecallReason] = useState("");
   const [recallError, setRecallError] = useState("");
   const qc = useQueryClient();
   const tabs = TABS.filter(([key]) => {
-    if (key === "devices") return me?.can_manage_devices;
     if (key === "department-review") return !!me?.can_review_department_requests && !me?.can_approve;
     return me?.can_approve;
   });
@@ -26,7 +25,7 @@ export default function Approvals() {
     : tab === "leave" ? "/admin/leave/?include_active=true"
     : tab === "official-duty" ? "/admin/official-duty/?include_active=true"
     : tab === "recurring-leave" ? "/admin/recurring-leave/?include_active=true"
-    : tab === "review" ? "/admin/review-queue/" : tab === "department-review" ? "/admin/department-review/" : "/admin/device-removals/";
+    : tab === "review" ? "/admin/review-queue/" : "/admin/department-review/";
   const { data = [] } = useQuery({ queryKey: [tab], queryFn: () => api.get(listUrl).then((r) => r.data) });
   const decide = useMutation({
     mutationFn: ({ id, decision, type }: { id: number; decision: string; type?: string }) => {
@@ -34,7 +33,7 @@ export default function Approvals() {
         : tab === "leave" ? `/admin/leave/${id}/decide/`
         : tab === "official-duty" ? `/admin/official-duty/${id}/decide/`
         : tab === "recurring-leave" ? `/admin/recurring-leave/${id}/decide/`
-        : tab === "review" ? `/admin/review-queue/${id}/decide/` : tab === "department-review" ? `/admin/department-review/${type}/${id}/decide/` : `/admin/device-removals/${id}/decide/`;
+        : tab === "review" ? `/admin/review-queue/${id}/decide/` : `/admin/department-review/${type}/${id}/decide/`;
       return api.post(url, { decision });
     }, onSuccess: () => qc.invalidateQueries({ queryKey: [tab] }),
   });
@@ -62,7 +61,6 @@ export default function Approvals() {
           {tab === "official-duty" && `${item.location} · ${item.start_date} → ${item.end_date} — ${item.reason}${item.status === "approved" ? " · Approved" : ""}`}
           {tab === "recurring-leave" && `Off: ${(item.off_weekdays ?? []).map((day: number) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day]).join(", ")} · ${item.start_date} → ${item.end_date} — ${item.reason}${item.status === "approved" ? " · Approved" : ""}`}
           {tab === "review" && `${item.date} · ${item.campus} · flags: ${item.flags.join(", ") || "none"}`}
-          {tab === "devices" && `${item.device_label} · IPPIS ${item.ippis} · requested ${new Date(item.requested_at).toLocaleString()}`}
           {tab === "department-review" && item.detail}
         </small></div>
         {recallable ? <button className="btn recall-btn" onClick={() => openRecall(item, kind)}>Recall</button> : <div className="row">

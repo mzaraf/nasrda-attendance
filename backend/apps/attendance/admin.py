@@ -1,7 +1,22 @@
 from django.contrib import admin
 
 from .models import (ActivityAttachment, ActivityCategory, AttendanceLocation,
-                     AttendanceRecord, DailyActivity)
+                     AttendanceRecord, DailyActivity, FaceProfile, FaceVerification)
+
+
+@admin.register(FaceProfile)
+class FaceProfileAdmin(admin.ModelAdmin):
+    list_display = ["user", "status", "enrolled_at", "last_verified_at"]
+    search_fields = ["user__ippis_number", "user__first_name", "user__last_name"]
+    readonly_fields = ["template_encrypted", "enrolled_at", "last_verified_at", "updated_at"]
+
+
+@admin.register(FaceVerification)
+class FaceVerificationAdmin(admin.ModelAdmin):
+    list_display = ["user", "action", "status", "liveness_passed", "match_distance", "created_at"]
+    list_filter = ["action", "status", "liveness_passed"]
+    search_fields = ["user__ippis_number"]
+    readonly_fields = [field.name for field in FaceVerification._meta.fields]
 
 
 @admin.register(ActivityCategory)

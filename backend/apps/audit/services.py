@@ -10,9 +10,7 @@ SETTING_LABELS = {
     "overtime_after_minutes": "overtime threshold (minutes)",
     "min_accuracy_m": "required GPS accuracy (metres)",
     "max_speed_mps": "maximum travel speed (m/s)",
-    "max_devices": "maximum registered devices per staff member",
-    "require_passkey": "biometric passkey requirement",
-    "device_approval_required": "new-device approval requirement",
+    "require_face_verification": "browser-camera face verification requirement",
 }
 
 FIELD_LABELS = {

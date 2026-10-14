@@ -12,7 +12,7 @@ class LocationInputSerializer(serializers.Serializer):
     latitude = serializers.FloatField(min_value=-90, max_value=90)
     longitude = serializers.FloatField(min_value=-180, max_value=180)
     accuracy = serializers.FloatField(min_value=0)
-    assertion = serializers.DictField(required=False)
+    face_verification_id = serializers.UUIDField(required=False)
 
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):

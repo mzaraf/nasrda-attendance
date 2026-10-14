@@ -6,9 +6,8 @@ from django.utils import timezone
 from apps.audit.services import client_ip, log
 from apps.core.errors import DomainError
 from apps.core.models import get_setting
-from apps.devices.passkeys import require_factor
 from . import absence, geo, rules
-from .models import AttendanceLocation, AttendanceRecord
+from .models import AttendanceLocation, AttendanceRecord, FaceProfile, FaceVerification
 
 
 def finalize_expired_open_records(now=None):
@@ -61,6 +60,28 @@ def _evidence(request, record, event, data, campus, dist, device, method, flags,
         user_agent=request.META.get("HTTP_USER_AGENT", "")[:300], flags=flags, recorded_at=now)
 
 
+def _require_face_verification(request, user, verification_id, action):
+    if not get_setting("require_face_verification"):
+        return None, "password_only"
+    profile = FaceProfile.objects.filter(user=user, status="active").first()
+    if not profile:
+        raise DomainError("FACE_ENROLLMENT_REQUIRED", "Set up face verification before recording attendance.", 409)
+    if not verification_id:
+        raise DomainError("FACE_VERIFICATION_REQUIRED", "Complete face verification before recording attendance.", 403)
+    with transaction.atomic():
+        result = FaceVerification.objects.select_for_update().filter(
+            pk=verification_id, user=user, action=action, status="success", used_at__isnull=True,
+            expires_at__gte=timezone.now(),
+        ).first()
+        if not result:
+            raise DomainError("FACE_VERIFICATION_EXPIRED", "Face verification expired. Please verify again.", 403)
+        result.used_at = timezone.now()
+        result.save(update_fields=["used_at"])
+    profile.last_verified_at = result.used_at
+    profile.save(update_fields=["last_verified_at"])
+    return None, "face_verification"
+
+
 def check_in(request, user, data):
     now = timezone.now()
     local = timezone.localtime(now)
@@ -69,7 +90,7 @@ def check_in(request, user, data):
         raise DomainError("NON_WORKING_DAY", f"Attendance is not required today: {reason}", 403)
     if not rules.checkin_is_open(local):
         raise DomainError("CHECKIN_CLOSED", f"Check-in closed at {get_setting('checkin_closes_after')}. You are recorded as absent for today.", 403)
-    device, method = require_factor(user, data.get("assertion"))
+    device, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-in")
     campus, dist, flags = _verify_location(request, user, data, "check-in")
 
     # SERVER time: the only time we trust
@@ -96,7 +117,7 @@ def check_out(request, user, data):
     if not rules.checkout_is_open(local, user):
         raise DomainError("CHECKOUT_NOT_OPEN",
                           f"Check-out opens at {checkout_after}.", 403)
-    device, method = require_factor(user, data.get("assertion"))
+    device, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-out")
     campus, dist, flags = _verify_location(request, user, data, "check-out")
 
     now = timezone.now()

@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import History from "./pages/History";
 import DeviceSetup from "./pages/DeviceSetup";
+import FaceSetup from "./pages/FaceSetup";
 import Requests from "./pages/Requests";
 import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -29,7 +30,7 @@ const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchO
 const STAFF_LINKS = [
   { to: "/", end: true, icon: "🏠", label: "Home" },
   { to: "/history", icon: "🗓️", label: "History" },
-  { to: "/device", icon: "🔐", label: "Device" },
+  { to: "/face", icon: "📷", label: "Face" },
   { to: "/requests", icon: "📝", label: "Requests" },
   { to: "/profile", icon: "🔑", label: "Change password" },
 ];
@@ -69,7 +70,7 @@ function TabBar({ canAdmin, onLogout }: { canAdmin: boolean; onLogout: () => voi
     <nav className="tabbar">
       <NavLink to="/" end>🏠<span>Home</span></NavLink>
       <NavLink to="/history">🗓️<span>History</span></NavLink>
-      <NavLink to="/device">🔐<span>Device</span></NavLink>
+      <NavLink to="/face">📷<span>Face</span></NavLink>
       <NavLink to="/requests">📝<span>Requests</span></NavLink>
       <NavLink to="/profile">🔑<span>Password</span></NavLink>
       {canAdmin && <NavLink to="/admin">📊<span>Admin</span></NavLink>}
@@ -105,6 +106,7 @@ function Shell() {
           <Route path="/" element={<Home />} />
           <Route path="/history" element={<History />} />
           <Route path="/device" element={<DeviceSetup />} />
+          <Route path="/face" element={<FaceSetup />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/profile" element={<Profile />} />
           {me.can_admin && <Route path="/admin" element={<AdminDashboard />} />}
