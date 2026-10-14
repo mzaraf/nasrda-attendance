@@ -1,6 +1,7 @@
 import os
 from datetime import date, datetime, timedelta
 import secrets
+import hashlib
 
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.db.models import Q
@@ -23,6 +24,7 @@ from apps.audit.services import log
 from apps.core.errors import DomainError
 from apps.core.emailing import send_email
 from apps.core.models import get_setting
+from apps.devices.models import DeviceRemovalRequest, RegisteredDevice
 from apps.org.models import Campus, Geofence
 from apps.org.models import Department
 from . import absence, face, rules, services, totp
@@ -162,6 +164,8 @@ def me_payload(user):
         "can_review_department_requests": user.has_perm("accounts.department_request_review"),
         "face_enrolled": FaceProfile.objects.filter(user=user, status="active").exists(),
         "require_face_verification": get_setting("require_face_verification"),
+        "has_approved_device": user.devices.filter(status="active", binding_hash__isnull=False).exists(),
+        "require_approved_device": get_setting("require_approved_device"),
         "mfa_enabled": user.mfa_enabled,
         "mfa_configured": user.mfa_confirmed,
     }
@@ -188,17 +192,96 @@ class FaceStatus(APIView):
         })
 
 
+class DeviceBindingList(APIView):
+    def get(self, request):
+        devices = request.user.devices.filter(binding_hash__isnull=False).prefetch_related("removal_request").order_by("-registered_at")
+        return Response([{"id": device.pk, "label": device.label, "status": device.status,
+                          "registered_at": device.registered_at, "last_seen_at": device.last_seen_at,
+                          "removal_pending": hasattr(device, "removal_request") and device.removal_request.status == "pending"}
+                         for device in devices])
+
+
+class DeviceRemovalRequestView(APIView):
+    def post(self, request, pk):
+        device = request.user.devices.filter(pk=pk, binding_hash__isnull=False, status="active").first()
+        if not device:
+            raise DomainError("NOT_FOUND", "Approved device not found.", 404)
+        removal, created = DeviceRemovalRequest.objects.get_or_create(device=device, defaults={"status": "pending"})
+        if not created and removal.status == "pending":
+            raise DomainError("REMOVAL_ALREADY_REQUESTED", "This device removal is already awaiting administrator approval.", 409)
+        if not created:
+            removal.status, removal.decided_by, removal.decided_at = "pending", None, None
+            removal.save(update_fields=["status", "decided_by", "decided_at"])
+        log(request, request.user, "device.removal_requested", device.label)
+        return Response({"status": "pending"}, status=202)
+
+
+class DeviceRemovalQueue(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPerm]
+    required_perms = ["accounts.device_manage"]
+
+    def get(self, request):
+        removals = DeviceRemovalRequest.objects.filter(status="pending", device__binding_hash__isnull=False).select_related("device", "device__user").order_by("requested_at")
+        return Response([{"id": item.pk, "staff": item.device.user.get_full_name(), "ippis": item.device.user.ippis_number,
+                          "device_label": item.device.label, "requested_at": item.requested_at} for item in removals])
+
+
+class DeviceRemovalDecide(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPerm]
+    required_perms = ["accounts.device_manage"]
+
+    def post(self, request, pk):
+        item = DeviceRemovalRequest.objects.filter(pk=pk, status="pending", device__binding_hash__isnull=False).select_related("device", "device__user").first()
+        if not item:
+            raise DomainError("NOT_FOUND", "Device-removal request not found or already decided.", 404)
+        decision = request.data.get("decision")
+        if decision not in ("approved", "rejected"):
+            raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
+        item.status, item.decided_by, item.decided_at = decision, request.user, timezone.now()
+        item.save(update_fields=["status", "decided_by", "decided_at"])
+        if decision == "approved":
+            item.device.status = "revoked"
+            item.device.save(update_fields=["status"])
+        log(request, request.user, f"device.removal_{decision}", f"{item.device.user.ippis_number}: {item.device.label}")
+        return Response({"status": decision})
+
+
 class FaceEnroll(APIView):
     def post(self, request):
         profile, _ = FaceProfile.objects.get_or_create(user=request.user)
+        token = str(request.data.get("device_token", "")).strip()
+        label = str(request.data.get("label", "This browser")).strip()[:80]
+        if len(token) < 32:
+            raise DomainError("INVALID_DEVICE_TOKEN", "This browser could not create a secure device token. Please update your browser and try again.")
+        fingerprint = hashlib.sha256(token.encode()).hexdigest()
+        # A new user creates a template. An existing user proves their face again
+        # before a replacement browser is bound to the account.
+        encrypted_template = (profile.template_encrypted if profile.status == "active"
+                              else face.enroll(request.data.get("images", [])))
         if profile.status == "active":
-            raise DomainError("FACE_ALREADY_ENROLLED", "Face verification is already active. Ask an administrator to reset it before enrolling again.", 409)
-        profile.template_encrypted = face.enroll(request.data.get("images", []))
-        profile.status, profile.enrolled_at = "active", timezone.now()
+            face.verify(request.data.get("images", []), profile.template_encrypted)
+        bound_device = RegisteredDevice.objects.filter(user=request.user, binding_hash=fingerprint).first()
+        if not bound_device:
+            other_owner = RegisteredDevice.objects.filter(binding_hash=fingerprint).exists()
+            if other_owner:
+                raise DomainError("DEVICE_TOKEN_CONFLICT", "This browser device token is already bound to another account. Clear the app data and try again.", 409)
+            count = request.user.devices.filter(binding_hash__isnull=False).exclude(status="revoked").count()
+            if count >= get_setting("max_devices"):
+                raise DomainError("DEVICE_LIMIT", "You have reached the approved-device limit. Ask an administrator to remove an old device first.", 409)
+            bound_device = RegisteredDevice.objects.create(
+                user=request.user, label=label or "This browser", binding_hash=fingerprint, status="active",
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
+            )
+        profile.template_encrypted = encrypted_template
+        profile.status = "active"
+        if not profile.enrolled_at:
+            profile.enrolled_at = timezone.now()
         profile.enrollment_user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
         profile.save(update_fields=["template_encrypted", "status", "enrolled_at", "enrollment_user_agent", "updated_at"])
-        log(request, request.user, "face.enrolled", "Self-hosted face verification enrolled")
-        return Response({"status": profile.status, "enrolled_at": profile.enrolled_at}, status=201)
+        log(request, request.user, "face.enrolled", "Face verification enrolled and device bound",
+            new={"device": bound_device.pk, "device_status": bound_device.status})
+        return Response({"status": profile.status, "enrolled_at": profile.enrolled_at,
+                         "device_status": bound_device.status, "device_label": bound_device.label}, status=201)
 
 
 class FaceChallenge(APIView):

@@ -30,7 +30,7 @@ const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchO
 const STAFF_LINKS = [
   { to: "/", end: true, icon: "🏠", label: "Home" },
   { to: "/history", icon: "🗓️", label: "History" },
-  { to: "/face", icon: "📷", label: "Face" },
+  { to: "/face", icon: "📷", label: "Face ID" },
   { to: "/requests", icon: "📝", label: "Requests" },
   { to: "/profile", icon: "🔑", label: "Change password" },
 ];
@@ -70,7 +70,7 @@ function TabBar({ canAdmin, onLogout }: { canAdmin: boolean; onLogout: () => voi
     <nav className="tabbar">
       <NavLink to="/" end>🏠<span>Home</span></NavLink>
       <NavLink to="/history">🗓️<span>History</span></NavLink>
-      <NavLink to="/face">📷<span>Face</span></NavLink>
+      <NavLink to="/face">📷<span>Face ID</span></NavLink>
       <NavLink to="/requests">📝<span>Requests</span></NavLink>
       <NavLink to="/profile">🔑<span>Password</span></NavLink>
       {canAdmin && <NavLink to="/admin">📊<span>Admin</span></NavLink>}

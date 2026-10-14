@@ -1,4 +1,5 @@
 from datetime import datetime, time
+import hashlib
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -6,6 +7,7 @@ from django.utils import timezone
 from apps.audit.services import client_ip, log
 from apps.core.errors import DomainError
 from apps.core.models import get_setting
+from apps.devices.models import RegisteredDevice
 from . import absence, geo, rules
 from .models import AttendanceLocation, AttendanceRecord, FaceProfile, FaceVerification
 
@@ -82,6 +84,20 @@ def _require_face_verification(request, user, verification_id, action):
     return None, "face_verification"
 
 
+def _require_approved_device(user, token):
+    if not get_setting("require_approved_device"):
+        return None
+    if not token:
+        raise DomainError("DEVICE_REGISTRATION_REQUIRED", "Set up face verification on this device before recording attendance.", 403)
+    fingerprint = hashlib.sha256(token.encode()).hexdigest()
+    device = RegisteredDevice.objects.filter(user=user, binding_hash=fingerprint, status="active").first()
+    if not device:
+        raise DomainError("DEVICE_NOT_REGISTERED", "This device is not registered for attendance. Complete face verification on this device first.", 403)
+    device.last_seen_at = timezone.now()
+    device.save(update_fields=["last_seen_at"])
+    return device
+
+
 def check_in(request, user, data):
     now = timezone.now()
     local = timezone.localtime(now)
@@ -90,7 +106,8 @@ def check_in(request, user, data):
         raise DomainError("NON_WORKING_DAY", f"Attendance is not required today: {reason}", 403)
     if not rules.checkin_is_open(local):
         raise DomainError("CHECKIN_CLOSED", f"Check-in closed at {get_setting('checkin_closes_after')}. You are recorded as absent for today.", 403)
-    device, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-in")
+    _, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-in")
+    device = _require_approved_device(user, data.get("device_token"))
     campus, dist, flags = _verify_location(request, user, data, "check-in")
 
     # SERVER time: the only time we trust
@@ -117,7 +134,8 @@ def check_out(request, user, data):
     if not rules.checkout_is_open(local, user):
         raise DomainError("CHECKOUT_NOT_OPEN",
                           f"Check-out opens at {checkout_after}.", 403)
-    device, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-out")
+    _, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-out")
+    device = _require_approved_device(user, data.get("device_token"))
     campus, dist, flags = _verify_location(request, user, data, "check-out")
 
     now = timezone.now()

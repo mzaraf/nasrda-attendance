@@ -32,6 +32,10 @@ api = [
 
     path("staff/face/", v.FaceStatus.as_view()),
     path("staff/face/enroll/", v.FaceEnroll.as_view()),
+    path("staff/devices/", v.DeviceBindingList.as_view()),
+    path("staff/devices/<int:pk>/remove-request/", v.DeviceRemovalRequestView.as_view()),
+    path("admin/device-removals/", v.DeviceRemovalQueue.as_view()),
+    path("admin/device-removals/<int:pk>/decide/", v.DeviceRemovalDecide.as_view()),
     path("staff/mfa/setup/", v.MFASetup.as_view()),
     path("staff/mfa/confirm/", v.MFAConfirmSetup.as_view()),
     path("attendance/face/challenge/", v.FaceChallenge.as_view()),

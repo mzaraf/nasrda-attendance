@@ -11,6 +11,9 @@ class RegisteredDevice(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="devices")
     label = models.CharField(max_length=80)                 # "My Samsung"
     user_agent = models.CharField(max_length=300, blank=True)
+    # Hash of a random token generated and kept in this browser's local storage.
+    # It is not a hardware identifier and does not use phone biometrics.
+    binding_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     registered_at = models.DateTimeField(auto_now_add=True)
     last_seen_at = models.DateTimeField(null=True, blank=True)

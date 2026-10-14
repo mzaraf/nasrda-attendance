@@ -23,6 +23,7 @@ export default function History() {
     queryFn: () => api.get("/attendance/history/", { params: { month } }).then((r) => r.data as any[]),
   });
   const late = data.filter((r) => r.check_in_status === "late").length;
+  const early = data.filter((r) => r.check_out_status === "early_departure").length;
 
   return (
     <div className="page">
@@ -31,9 +32,10 @@ export default function History() {
         <button type="button" className="date-picker-display" onClick={(e) => openNativePicker(e.currentTarget)}>{displayMonth(month)}</button>
         <input aria-label="Attendance month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
       </div>
-      <div className="card grid2">
+      <div className="card history-summary">
         <div><small>Days present</small><b>{data.length}</b></div>
-        <div><small>Late days</small><b>{late}</b></div>
+        <div><small>Late</small><b>{late}</b></div>
+        <div><small>Early</small><b>{early}</b></div>
       </div>
       {isLoading && <p className="muted">Loading…</p>}
       {!isLoading && data.length === 0 && <p className="muted">No records for this month.</p>}

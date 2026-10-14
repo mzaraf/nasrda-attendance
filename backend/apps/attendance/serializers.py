@@ -13,6 +13,7 @@ class LocationInputSerializer(serializers.Serializer):
     longitude = serializers.FloatField(min_value=-180, max_value=180)
     accuracy = serializers.FloatField(min_value=0)
     face_verification_id = serializers.UUIDField(required=False)
+    device_token = serializers.CharField(required=False, max_length=160)
 
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):

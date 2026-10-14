@@ -8,6 +8,7 @@ import { getPosition } from "../lib/geo";
 import { useOnline } from "../lib/useOnline";
 import ActivitySheet from "../components/ActivitySheet";
 import FaceCapture from "../components/FaceCapture";
+import { deviceToken } from "../lib/device";
 
 const fmt = (iso?: string | null) =>
   iso ? new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "—";
@@ -40,7 +41,7 @@ export default function Home() {
       setBusy("Getting your location…");
       const fix = await getPosition();
       setBusy("Recording attendance…");
-      await api.post(`/attendance/${kind}/`, { ...fix, face_verification_id: faceVerificationId });
+      await api.post(`/attendance/${kind}/`, { ...fix, face_verification_id: faceVerificationId, device_token: deviceToken() });
       setSuccess(kind === "check-in" ? "CHECK-IN SUCCESSFUL" : "CHECK-OUT SUCCESSFUL");
       setSheet(false);
       qc.invalidateQueries({ queryKey: ["today"] });
@@ -53,6 +54,7 @@ export default function Home() {
   const rec = data?.record;
   const state: string = data?.state ?? "not_checked_in";
   const needsFace = me?.require_face_verification && !me?.face_enrolled;
+  const needsDevice = me?.require_approved_device && !me?.has_approved_device;
   const checkoutAfter = data?.checkout_allowed_after ?? "16:30";
   const checkinClosesAfter = data?.checkin_closes_after ?? "12:00";
   const checkinOpen = data?.checkin_open ?? true;
@@ -80,6 +82,7 @@ export default function Home() {
               Set up face verification to mark attendance. <Link to="/face">Set up now →</Link>
             </div>
           )}
+          {needsDevice && !needsFace && <div className="alert warn">Set up face verification on this device before marking attendance. <Link to="/face">Set up now →</Link></div>}
           {me?.mfa_enabled && !me?.mfa_configured && (
             <div className="alert warn">
               Authenticator MFA is required for your account. <Link to="/device">Set it up now →</Link>
@@ -90,14 +93,14 @@ export default function Home() {
 
           <div className="action">
             {state === "not_checked_in" && !nonWorkingReason && (
-              <button className="bigbtn in" disabled={!!busy || needsFace || !checkinOpen} onClick={() => setFaceAction("check-in")}>
+              <button className="bigbtn in" disabled={!!busy || needsFace || needsDevice || !checkinOpen} onClick={() => setFaceAction("check-in")}>
                 {busy || "CHECK IN"}
               </button>
             )}
             {state === "not_checked_in" && !nonWorkingReason && !checkinOpen && <small>Check-in closed at {checkinClosesAfter}. You are marked absent for today.</small>}
             {state === "not_checked_in" && nonWorkingReason && <div className="done">Office closed today</div>}
             {state === "checked_in" && (
-              <button className="bigbtn out" disabled={!!busy || needsFace || !checkoutOpen} onClick={() => setSheet(true)}>
+              <button className="bigbtn out" disabled={!!busy || needsFace || needsDevice || !checkoutOpen} onClick={() => setSheet(true)}>
                 {busy || "CHECK OUT"}
               </button>
             )}

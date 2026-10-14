@@ -11,6 +11,8 @@ SETTING_LABELS = {
     "min_accuracy_m": "required GPS accuracy (metres)",
     "max_speed_mps": "maximum travel speed (m/s)",
     "require_face_verification": "browser-camera face verification requirement",
+    "require_approved_device": "approved browser/device requirement",
+    "max_devices": "maximum approved devices per staff member",
 }
 
 FIELD_LABELS = {

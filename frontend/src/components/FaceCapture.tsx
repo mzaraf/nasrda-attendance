@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorOf } from "../api";
+import { deviceLabel, deviceToken } from "../lib/device";
 
 type Props = { mode: "enrol" | "verify"; action?: "check-in" | "check-out"; onComplete: (verificationId?: string) => void; onClose: () => void };
 const ENROL_STEPS = ["Look straight at the camera", "Turn your head slightly left", "Turn your head slightly right"];
@@ -27,7 +28,7 @@ export default function FaceCapture({ mode, action, onComplete, onClose }: Props
     if (next.length < 3) return;
     setBusy(true);
     try {
-      if (mode === "enrol") await api.post("/staff/face/enroll/", { images: next });
+      if (mode === "enrol") await api.post("/staff/face/enroll/", { images: next, device_token: deviceToken(), label: deviceLabel() });
       else { const { data } = await api.post("/attendance/face/verify/", { challenge_id: challengeId, images: next }); close(); onComplete(data.verification_id); return; }
       close(); onComplete();
     } catch (e) { setImages([]); setError(errorOf(e).message); }

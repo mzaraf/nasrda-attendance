@@ -5,8 +5,8 @@ import { api, errorOf } from "../../api";
 type Settings = {
   work_start: string; work_end: string; checkin_late_after: string; checkin_closes_after: string; checkout_allowed_after: string; nursing_mother_checkout_after: string;
   grace_minutes: number; overtime_after_minutes: number;
-  min_accuracy_m: number; max_speed_mps: number;
-  require_face_verification: boolean;
+  min_accuracy_m: number; max_speed_mps: number; max_devices: number;
+  require_face_verification: boolean; require_approved_device: boolean;
 };
 
 export default function Settings() {
@@ -30,7 +30,7 @@ export default function Settings() {
     <h2>System settings</h2><p className="muted">Changes take effect immediately across attendance, location checks, and face-verification security.</p>
     <section className="card"><h3>Working hours</h3><div className="row"><div><label>Work starts</label><input type="time" value={form.work_start} onChange={set("work_start")} /></div><div><label>Work ends</label><input type="time" value={form.work_end} onChange={set("work_end")} /></div></div><label>Late check-in starts at</label><input type="time" value={form.checkin_late_after} onChange={set("checkin_late_after")} /><small className="muted">Staff who check in from this time until check-in closes are marked late.</small><label>Check-in closes at</label><input type="time" value={form.checkin_closes_after} onChange={set("checkin_closes_after")} /><small className="muted">After this time, check-in is disabled and staff without an approved exception are counted absent.</small><label>Check-out available from</label><input type="time" value={form.checkout_allowed_after} onChange={set("checkout_allowed_after")} /><label>Nursing mother check-out available from</label><input type="time" value={form.nursing_mother_checkout_after} onChange={set("nursing_mother_checkout_after")} /><small className="muted">Applies only to staff marked as a nursing mother.</small><NumberField label="Overtime begins after (minutes)" value={form.overtime_after_minutes} onChange={set("overtime_after_minutes")} /></section>
     <section className="card"><h3>Location validation</h3><div className="row"><NumberField label="Required GPS accuracy (metres)" value={form.min_accuracy_m} onChange={set("min_accuracy_m")} /><NumberField label="Maximum travel speed (m/s)" value={form.max_speed_mps} onChange={set("max_speed_mps")} /></div></section>
-    <section className="card"><h3>Face verification</h3><Toggle label="Require browser-camera face verification for attendance" checked={form.require_face_verification} onChange={set("require_face_verification")} /><small className="muted">This uses a live camera check and encrypted facial template. It does not use Face ID, fingerprints, phone PINs, or passkeys.</small></section>
+    <section className="card"><h3>Face and approved-device verification</h3><Toggle label="Require browser-camera face verification for attendance" checked={form.require_face_verification} onChange={set("require_face_verification")} /><Toggle label="Require an administrator-approved browser/device" checked={form.require_approved_device} onChange={set("require_approved_device")} /><NumberField label="Maximum approved devices per staff member" value={form.max_devices} onChange={set("max_devices")} /><small className="muted">Face verification is combined with a registered browser token. It does not use Face ID, fingerprints, phone PINs, or passkeys.</small></section>
     {msg && <div className={`alert ${msg.ok ? "success" : "error"}`}>{msg.text}</div>}<button className="btn primary" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save settings"}</button>
   </div>;
 }

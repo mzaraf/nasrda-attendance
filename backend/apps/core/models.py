@@ -11,6 +11,8 @@ DEFAULTS = {
     "overtime_after_minutes": 30,    # minutes beyond work_end before overtime counts
     "min_accuracy_m": 100,           # reject GPS fixes worse than this
     "require_face_verification": True,
+    "require_approved_device": True,
+    "max_devices": 1,
     "max_speed_mps": 70,             # ~250 km/h; faster implied movement is flagged
 }
 
