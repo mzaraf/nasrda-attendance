@@ -99,23 +99,20 @@ def _distance(a: Iterable[float], b: Iterable[float]) -> float:
 
 
 def enroll(images: list[str]) -> str:
-    if not isinstance(images, list) or len(images) < 3:
-        raise DomainError("FACE_ENROLLMENT_INCOMPLETE", "Capture three live camera images to enrol your face.")
-    embeddings = [_embedding(_image(image)) for image in images[:3]]
-    # Average the three captures to make the enrolled reference less sensitive to
-    # one imperfect frame; the raw images are discarded immediately.
-    avg = [sum(values) / len(values) for values in zip(*embeddings)]
-    return encrypt_template(avg)
+    if not isinstance(images, list) or not images:
+        raise DomainError("FACE_ENROLLMENT_INCOMPLETE", "Capture one clear, live camera image to enrol your face.")
+    # A single straight-on image keeps enrolment quick for staff. The image still
+    # goes through the server-side anti-spoofing check and is discarded at once;
+    # only the encrypted template is retained.
+    return encrypt_template(_embedding(_image(images[0])))
 
 
 def verify(images: list[str], encrypted_template: str) -> float:
-    if not isinstance(images, list) or len(images) < 3:
-        raise DomainError("FACE_VERIFICATION_INCOMPLETE", "Complete all three live camera captures.")
+    if not isinstance(images, list) or not images:
+        raise DomainError("FACE_VERIFICATION_INCOMPLETE", "Capture one clear, live camera image to continue.")
     template = decrypt_template(encrypted_template)
-    distances = [_distance(_embedding(_image(image)), template) for image in images[:3]]
-    # Require a majority of independently captured, liveness-screened frames.
+    distance = _distance(_embedding(_image(images[0])), template)
     threshold = float(os.environ.get("FACE_MATCH_THRESHOLD", "0.35"))
-    passed = [distance for distance in distances if distance <= threshold]
-    if len(passed) < 2:
+    if distance > threshold:
         raise DomainError("FACE_NOT_RECOGNISED", "Your face could not be matched. Improve lighting and try again, or contact an administrator.", 403)
-    return sum(distances) / len(distances)
+    return distance

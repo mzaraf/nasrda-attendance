@@ -242,7 +242,14 @@ class DeviceRemovalDecide(APIView):
         if decision == "approved":
             item.device.status = "revoked"
             item.device.save(update_fields=["status"])
-        log(request, request.user, f"device.removal_{decision}", f"{item.device.user.ippis_number}: {item.device.label}")
+            # The biometric template belongs to the approved device binding too.
+            # Removing the device therefore removes the encrypted face profile;
+            # the staff member must perform a fresh face-and-device setup later.
+            FaceProfile.objects.filter(user=item.device.user).delete()
+        description = f"{item.device.user.ippis_number}: {item.device.label}"
+        if decision == "approved":
+            description += "; device revoked and face verification removed"
+        log(request, request.user, f"device.removal_{decision}", description)
         return Response({"status": decision})
 
 
@@ -261,6 +268,14 @@ class FaceEnroll(APIView):
         if profile.status == "active":
             face.verify(request.data.get("images", []), profile.template_encrypted)
         bound_device = RegisteredDevice.objects.filter(user=request.user, binding_hash=fingerprint).first()
+        # A device that was previously removed has the same browser token. A fresh
+        # successful face verification is the explicit re-registration step, so
+        # reactivate that binding rather than leaving the account face-only.
+        if bound_device and bound_device.status == RegisteredDevice.Status.REVOKED:
+            bound_device.status = RegisteredDevice.Status.ACTIVE
+            bound_device.label = label or "This browser"
+            bound_device.user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
+            bound_device.save(update_fields=["status", "label", "user_agent"])
         if not bound_device:
             other_owner = RegisteredDevice.objects.filter(binding_hash=fingerprint).exists()
             if other_owner:
@@ -290,8 +305,7 @@ class FaceChallenge(APIView):
         action_name = request.data.get("action")
         if action_name not in ("check-in", "check-out"):
             raise DomainError("INVALID_FACE_ACTION", "Face verification is only available for check-in or check-out.")
-        actions = ["Look straight ahead", "Turn your head slightly left", "Turn your head slightly right"]
-        secrets.SystemRandom().shuffle(actions)
+        actions = ["Look straight at the camera"]
         challenge = {"nonce": secrets.token_urlsafe(32), "action": action_name, "actions": actions, "expires": (timezone.now() + timedelta(minutes=2)).timestamp()}
         request.session["face_challenge"] = challenge
         return Response({"challenge_id": challenge["nonce"], "steps": actions, "expires_in_seconds": 120})

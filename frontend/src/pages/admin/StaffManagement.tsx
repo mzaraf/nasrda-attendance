@@ -90,7 +90,7 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [resetting, setResetting] = useState<"password" | "face" | null>(null);
+  const [resetting, setResetting] = useState<"password" | null>(null);
   const [tempPassword, setTempPassword] = useState("");
 
   const { data: departments = [] } = useQuery({
@@ -120,16 +120,6 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
       const { data } = await api.post(`/admin/staff/${staff.id}/reset_password/`);
       setTempPassword(data.temporary_password);
       setMsg({ ok: true, text: data.email_sent ? "New temporary password generated and emailed to the staff member." : "New temporary password generated — hand it to the staff member directly." });
-    } catch (e) { setMsg({ ok: false, text: errorOf(e).message }); }
-    finally { setResetting(null); }
-  };
-
-  const resetFace = async () => {
-    if (!confirm(`Reset ${staff.first_name}'s face verification? They will need to enrol their face again before attendance can be recorded.`)) return;
-    setResetting("face"); setMsg(null);
-    try {
-      await api.post(`/admin/staff/${staff.id}/reset_face/`);
-      setMsg({ ok: true, text: "Face verification reset. The staff member must enrol again." });
     } catch (e) { setMsg({ ok: false, text: errorOf(e).message }); }
     finally { setResetting(null); }
   };
@@ -204,12 +194,9 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
           {saving ? (<><span className="spinner" /> Saving…</>) : "Save changes"}
         </button>
 
-        <div className="row" style={{ marginTop: 14 }}>
+        <div style={{ marginTop: 14 }}>
           <button className="btn" disabled={!!resetting} onClick={resetPassword}>
             {resetting === "password" ? (<><span className="spinner" /> Resetting…</>) : "Reset password"}
-          </button>
-          <button className="btn" disabled={!!resetting} onClick={resetFace}>
-            {resetting === "face" ? (<><span className="spinner" /> Resetting…</>) : "Reset face verification"}
           </button>
         </div>
         <button className="btn" onClick={onClose}>Close</button>
