@@ -90,7 +90,7 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [resetting, setResetting] = useState<"password" | null>(null);
+  const [resetting, setResetting] = useState<"password" | "device" | null>(null);
   const [tempPassword, setTempPassword] = useState("");
 
   const { data: departments = [] } = useQuery({
@@ -120,6 +120,16 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
       const { data } = await api.post(`/admin/staff/${staff.id}/reset_password/`);
       setTempPassword(data.temporary_password);
       setMsg({ ok: true, text: data.email_sent ? "New temporary password generated and emailed to the staff member." : "New temporary password generated — hand it to the staff member directly." });
+    } catch (e) { setMsg({ ok: false, text: errorOf(e).message }); }
+    finally { setResetting(null); }
+  };
+
+  const resetDevice = async () => {
+    if (!confirm(`Reset ${staff.first_name}'s device and Face ID? Their current attendance device will stop working, and they must set up Face ID again on a replacement device.`)) return;
+    setResetting("device"); setMsg(null);
+    try {
+      await api.post(`/admin/staff/${staff.id}/reset_devices/`);
+      setMsg({ ok: true, text: "Device and Face ID reset. The staff member can now set up Face ID on a new device." });
     } catch (e) { setMsg({ ok: false, text: errorOf(e).message }); }
     finally { setResetting(null); }
   };
@@ -194,9 +204,12 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
           {saving ? (<><span className="spinner" /> Saving…</>) : "Save changes"}
         </button>
 
-        <div style={{ marginTop: 14 }}>
+        <div className="row" style={{ marginTop: 14 }}>
           <button className="btn" disabled={!!resetting} onClick={resetPassword}>
             {resetting === "password" ? (<><span className="spinner" /> Resetting…</>) : "Reset password"}
+          </button>
+          <button className="btn" disabled={!!resetting} onClick={resetDevice}>
+            {resetting === "device" ? (<><span className="spinner" /> Resetting…</>) : "Reset device"}
           </button>
         </div>
         <button className="btn" onClick={onClose}>Close</button>

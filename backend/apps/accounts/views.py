@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.models import Group, Permission
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.decorators import action
@@ -93,10 +94,20 @@ class StaffViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def reset_devices(self, request, pk=None):
+        from apps.attendance.models import FaceProfile
+        from apps.devices.models import DeviceRemovalRequest
+
         u = self.get_object()
-        n = u.devices.exclude(status="revoked").update(status="revoked")
-        log(request, request.user, "staff.devices_reset", f"{u.ippis_number}: {n} device(s)")
-        return Response({"revoked": n})
+        with transaction.atomic():
+            n = u.devices.exclude(status="revoked").update(status="revoked")
+            # A reset supersedes any outstanding self-service removal request.
+            DeviceRemovalRequest.objects.filter(device__user=u, status="pending").update(
+                status="rejected", decided_by=request.user, decided_at=timezone.now()
+            )
+            FaceProfile.objects.filter(user=u).delete()
+        log(request, request.user, "staff.devices_reset",
+            f"{u.ippis_number}: reset {n} device(s) and removed face verification")
+        return Response({"revoked": n, "face_removed": True})
 
 class RoleViewSet(viewsets.ModelViewSet):
     """Custom Django groups used as staff roles."""
