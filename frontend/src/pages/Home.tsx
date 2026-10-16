@@ -54,7 +54,7 @@ export default function Home() {
   const rec = data?.record;
   const state: string = data?.state ?? "not_checked_in";
   const needsFace = me?.require_face_verification && !me?.face_enrolled;
-  const needsDevice = me?.require_approved_device && !me?.has_approved_device;
+  const needsDevice = me?.require_approved_device && !me?.has_current_approved_device;
   const checkoutAfter = data?.checkout_allowed_after ?? "16:30";
   const checkinClosesAfter = data?.checkin_closes_after ?? "12:00";
   const checkinOpen = data?.checkin_open ?? true;
@@ -82,7 +82,7 @@ export default function Home() {
               Set up face verification to mark attendance. <Link to="/face">Set up now →</Link>
             </div>
           )}
-          {needsDevice && !needsFace && <div className="alert warn">Set up face verification on this device before marking attendance. <Link to="/face">Set up now →</Link></div>}
+          {needsDevice && !needsFace && <div className="alert warn">{me?.has_approved_device ? "This is not your registered attendance device. Use the device used to set up Face ID, or ask an administrator to reset your device." : <>Set up face verification on this device before marking attendance. <Link to="/face">Set up now →</Link></>}</div>}
           {me?.mfa_enabled && !me?.mfa_configured && (
             <div className="alert warn">
               Authenticator MFA is required for your account. <Link to="/device">Set it up now →</Link>

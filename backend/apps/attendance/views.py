@@ -76,7 +76,7 @@ class LoginView(APIView):
         login(request, user)
         request.session.set_expiry(60 * 60 * 9)
         log(request, user, "auth.login")
-        return Response(me_payload(user))
+        return Response(me_payload(user, request.data.get("device_token")))
 
 
 class MFAVerifyLogin(APIView):
@@ -100,7 +100,7 @@ class MFAVerifyLogin(APIView):
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         request.session.set_expiry(60 * 60 * 9)
         log(request, user, "auth.login", "Signed in with authenticator MFA")
-        return Response(me_payload(user))
+        return Response(me_payload(user, request.data.get("device_token")))
 
 
 class MFASetup(APIView):
@@ -144,7 +144,8 @@ class LogoutView(APIView):
         return Response(status=204)
 
 
-def me_payload(user):
+def me_payload(user, device_token=None):
+    device_hash = hashlib.sha256(str(device_token).encode()).hexdigest() if device_token else ""
     return {
         "id": user.pk, "name": user.get_full_name(), "first_name": user.first_name, "last_name": user.last_name,
         "ippis_number": user.ippis_number,
@@ -165,6 +166,9 @@ def me_payload(user):
         "face_enrolled": FaceProfile.objects.filter(user=user, status="active").exists(),
         "require_face_verification": get_setting("require_face_verification"),
         "has_approved_device": user.devices.filter(status="active", binding_hash__isnull=False).exists(),
+        "has_current_approved_device": bool(device_hash) and user.devices.filter(
+            status="active", binding_hash=device_hash
+        ).exists(),
         "require_approved_device": get_setting("require_approved_device"),
         "mfa_enabled": user.mfa_enabled,
         "mfa_configured": user.mfa_confirmed,
@@ -178,7 +182,7 @@ class MeView(APIView):
     def get(self, request):
         if not request.user.is_authenticated:
             return Response({"authenticated": False})
-        return Response({"authenticated": True, **me_payload(request.user)})
+        return Response({"authenticated": True, **me_payload(request.user, request.headers.get("X-Attendance-Device-Token"))})
 
 
 # ---------- Attendance ----------

@@ -92,7 +92,7 @@ def _require_approved_device(user, token):
     fingerprint = hashlib.sha256(token.encode()).hexdigest()
     device = RegisteredDevice.objects.filter(user=user, binding_hash=fingerprint, status="active").first()
     if not device:
-        raise DomainError("DEVICE_NOT_REGISTERED", "This device is not registered for attendance. Complete face verification on this device first.", 403)
+        raise DomainError("DEVICE_NOT_REGISTERED", "This device is not registered for attendance. Use the device used to set up Face ID, or ask an administrator to reset your device.", 403)
     device.last_seen_at = timezone.now()
     device.save(update_fields=["last_seen_at"])
     return device

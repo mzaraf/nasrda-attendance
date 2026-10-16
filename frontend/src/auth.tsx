@@ -2,13 +2,14 @@ import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
+import { deviceToken } from "./lib/device";
 
 export type Me = {
   authenticated: boolean; name: string; first_name: string; last_name: string; ippis_number: string;
   department: string | null; can_admin: boolean; can_manage_staff: boolean; can_view_staff: boolean; can_access_staff: boolean; can_approve: boolean;
   can_manage_devices: boolean; can_access_approvals: boolean; can_export_reports: boolean; can_view_audit: boolean; can_manage_geofence: boolean; can_manage_roles: boolean;
   can_review_department_requests: boolean;
-  face_enrolled: boolean; require_face_verification: boolean; has_approved_device: boolean; require_approved_device: boolean; mfa_enabled: boolean; mfa_configured: boolean;
+  face_enrolled: boolean; require_face_verification: boolean; has_approved_device: boolean; has_current_approved_device: boolean; require_approved_device: boolean; mfa_enabled: boolean; mfa_configured: boolean;
 };
 type Ctx = { me?: Me; loading: boolean; refresh: () => void; adoptSession: (me: Me) => Promise<void>; logout: () => Promise<void> };
 const AuthCtx = createContext<Ctx>(null!);
@@ -17,7 +18,7 @@ export const useAuth = () => useContext(AuthCtx);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const [sessionIdentity, setSessionIdentity] = useState<Me | undefined>();
-  const fetchMe = () => api.get("/auth/me/").then((r) => r.data as Me);
+  const fetchMe = () => api.get("/auth/me/", { headers: { "X-Attendance-Device-Token": deviceToken() } }).then((r) => r.data as Me);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["me"],
     queryFn: fetchMe,

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, errorOf } from "../api";
 import { useAuth } from "../auth";
+import { deviceToken } from "../lib/device";
 
 export default function Login({ onAuthenticated }: { onAuthenticated?: () => void }) {
   const { adoptSession } = useAuth();
@@ -18,7 +19,7 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   const submit = async () => {
     setBusy(true); setErr("");
     try {
-      const { data } = await api.post("/auth/login/", { ippis_number: ippis, password });
+      const { data } = await api.post("/auth/login/", { ippis_number: ippis, password, device_token: deviceToken() });
       if (data.mfa_required) { setMfaRequired(true); return; }
       // The login response is the authoritative identity for this new server session.
       // Do not invalidate `me` here: an in-flight response from the previous user can
@@ -33,7 +34,7 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   const verifyMfa = async () => {
     setBusy(true); setErr("");
     try {
-      const { data } = await api.post("/auth/mfa/verify/", { code: mfaCode });
+      const { data } = await api.post("/auth/mfa/verify/", { code: mfaCode, device_token: deviceToken() });
       await adoptSession({ authenticated: true, ...data });
       onAuthenticated?.(); navigate("/", { replace: true });
     } catch (e) { setErr(errorOf(e).message); }
