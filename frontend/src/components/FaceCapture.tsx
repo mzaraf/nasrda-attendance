@@ -13,7 +13,7 @@ export default function FaceCapture({ mode, action, onComplete, onClose }: Props
   const close = () => { stream.current?.getTracks().forEach((track) => track.stop()); onClose(); };
   useEffect(() => { let mounted = true;
     (async () => { try {
-      const camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 720 }, height: { ideal: 720 } }, audio: false });
+      const camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 540 }, height: { ideal: 540 } }, audio: false });
       if (!mounted) { camera.getTracks().forEach((track) => track.stop()); return; }
       stream.current = camera; if (video.current) { video.current.srcObject = camera; await video.current.play(); }
       if (mode === "verify") { const { data } = await api.post("/attendance/face/challenge/", { action }); if (!mounted) return; setSteps(data.steps); setChallengeId(data.challenge_id); }
@@ -23,8 +23,13 @@ export default function FaceCapture({ mode, action, onComplete, onClose }: Props
   }, [action, mode]);
   const capture = async () => {
     if (!video.current || !video.current.videoWidth) return setError("Camera is still starting. Please wait.");
-    const canvas = document.createElement("canvas"); canvas.width = video.current.videoWidth; canvas.height = video.current.videoHeight;
-    canvas.getContext("2d")?.drawImage(video.current, 0, 0); const next = [...images, canvas.toDataURL("image/jpeg", 0.88)]; setImages(next); setError("");
+    const maxDimension = 540;
+    const scale = Math.min(1, maxDimension / Math.max(video.current.videoWidth, video.current.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(video.current.videoWidth * scale));
+    canvas.height = Math.max(1, Math.round(video.current.videoHeight * scale));
+    canvas.getContext("2d")?.drawImage(video.current, 0, 0, canvas.width, canvas.height);
+    const next = [...images, canvas.toDataURL("image/jpeg", 0.82)]; setImages(next); setError("");
     if (next.length < 1) return;
     setBusy(true);
     try {

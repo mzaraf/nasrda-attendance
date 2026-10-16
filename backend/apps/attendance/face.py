@@ -10,6 +10,7 @@ import io
 import json
 import math
 import os
+from functools import lru_cache
 from typing import Iterable
 
 from django.conf import settings
@@ -66,12 +67,25 @@ def _image(value: str):
         raise DomainError("INVALID_FACE_CAPTURE", "The camera image is invalid.")
 
 
+@lru_cache(maxsize=1)
 def _deepface():
     try:
         from deepface import DeepFace
         return DeepFace
     except ImportError:
         raise DomainError("FACE_SERVICE_UNAVAILABLE", "Facial verification is temporarily unavailable. Please contact the administrator.", 503)
+
+
+def warmup() -> None:
+    """Load the face-matching model before the first staff verification.
+
+    This is best-effort: a missing optional ML runtime must never stop Django
+    starting, and the normal request path still reports a clear service error.
+    """
+    try:
+        _deepface().build_model("ArcFace")
+    except Exception:
+        return
 
 
 def _embedding(image) -> list[float]:
