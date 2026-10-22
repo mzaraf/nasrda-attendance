@@ -1,4 +1,5 @@
 import os
+from calendar import monthrange
 from datetime import date, datetime, timedelta
 import secrets
 import hashlib
@@ -377,12 +378,40 @@ class Today(APIView):
 
 class History(APIView):
     def get(self, request):
-        qs = AttendanceRecord.objects.filter(user=request.user).select_related("campus")
-        if m := request.query_params.get("month"):            # YYYY-MM
-            y, mo = m.split("-")
-            qs = qs.filter(date__year=int(y), date__month=int(mo))
+        month = request.query_params.get("month")
+        try:
+            year, month_number = (map(int, month.split("-")) if month else
+                                  (timezone.localdate().year, timezone.localdate().month))
+            first_day = date(year, month_number, 1)
+        except (TypeError, ValueError):
+            raise DomainError("INVALID_MONTH", "Month must be in YYYY-MM format.")
+
+        qs = (AttendanceRecord.objects.filter(user=request.user, date__year=year, date__month=month_number)
+              .select_related("campus"))
         qs = qs.order_by("-date")[:100]
-        return Response(AttendanceRecordSerializer(qs, many=True).data)
+        records = list(qs)
+        present_dates = {record.date for record in records}
+        # Future dates must never be counted as absent. Approved requests are
+        # evaluated against every elapsed working day, so a late approval also
+        # corrects the staff member's past-month absence total automatically.
+        last_day = min(date(year, month_number, monthrange(year, month_number)[1]), timezone.localdate())
+        working_dates = []
+        current = first_day
+        while current <= last_day:
+            if absence.is_working_day(current):
+                working_dates.append(current)
+            current += timedelta(days=1)
+        excused_days = sum(
+            request.user.pk in (absence.on_approved_leave(day) | absence.on_official_duty(day) | absence.on_recurring_leave(day))
+            and day not in present_dates
+            for day in working_dates
+        )
+        eligible_days = max(len(working_dates) - excused_days, 0)
+        present = len(present_dates & set(working_dates))
+        return Response({
+            "records": AttendanceRecordSerializer(records, many=True).data,
+            "summary": {"days_present": present, "days_absent": max(eligible_days - present, 0)},
+        })
 
 
 # ---------- Activities ----------

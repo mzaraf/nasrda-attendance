@@ -13,17 +13,19 @@ const openNativePicker = (button: HTMLButtonElement) => {
   if (input.showPicker) input.showPicker();
   else { input.focus(); input.click(); }
 };
+type HistoryResponse = { records: any[]; summary: { days_present: number; days_absent: number } };
 
 export default function History() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   // Temporarily disabled: staff correction requests from History.
   // const [selectedRecord, setSelectedRecord] = useState<number | null>(null);
-  const { data = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["history", month],
-    queryFn: () => api.get("/attendance/history/", { params: { month } }).then((r) => r.data as any[]),
+    queryFn: () => api.get("/attendance/history/", { params: { month } }).then((r) => r.data as HistoryResponse),
   });
-  const late = data.filter((r) => r.check_in_status === "late").length;
-  const early = data.filter((r) => r.check_out_status === "early_departure").length;
+  const records = data?.records ?? [];
+  const late = records.filter((r) => r.check_in_status === "late").length;
+  const early = records.filter((r) => r.check_out_status === "early_departure").length;
 
   return (
     <div className="page">
@@ -33,13 +35,14 @@ export default function History() {
         <input aria-label="Attendance month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
       </div>
       <div className="card history-summary">
-        <div><small>Days present</small><b>{data.length}</b></div>
+        <div><small>Days present</small><b>{data?.summary.days_present ?? 0}</b></div>
+        <div><small>Days absent</small><b>{data?.summary.days_absent ?? 0}</b></div>
         <div><small>Early</small><b>{early}</b></div>
         <div><small>Late</small><b>{late}</b></div>
       </div>
       {isLoading && <p className="muted">Loading…</p>}
-      {!isLoading && data.length === 0 && <p className="muted">No records for this month.</p>}
-      {data.map((r) => (
+      {!isLoading && records.length === 0 && <p className="muted">No attendance records for this month.</p>}
+      {records.map((r) => (
         <div className="row-card" key={r.id}>
           <div>
             <b>{new Date(r.date).toLocaleDateString("en-NG", { weekday: "short", day: "numeric", month: "short" })}</b>
