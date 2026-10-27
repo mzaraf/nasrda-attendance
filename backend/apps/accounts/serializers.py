@@ -2,12 +2,16 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from rest_framework import serializers
 
+from apps.org.models import Campus
+
 User = get_user_model()
 
 
 class StaffSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source="department.name", read_only=True)
     campus_name = serializers.CharField(source="primary_campus.name", read_only=True)
+    secondary_campus_ids = serializers.PrimaryKeyRelatedField(source="secondary_campuses", many=True,
+                                                               queryset=Campus.objects.all(), required=False)
     role_ids = serializers.PrimaryKeyRelatedField(source="groups", many=True, queryset=Group.objects.all(), required=False)
     roles = serializers.StringRelatedField(source="groups", many=True, read_only=True)
 
@@ -22,7 +26,7 @@ class StaffSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "ippis_number", "file_number", "first_name", "middle_name", "last_name",
                   "email", "phone", "department", "department_name",
-                  "designation", "grade_level", "employment_status", "primary_campus", "campus_name",
+                  "designation", "grade_level", "employment_status", "primary_campus", "campus_name", "secondary_campus_ids",
                   "campus_policy", "is_nursing_mother", "mfa_enabled", "is_active", "role_ids", "roles"]
 
     def update(self, instance, validated_data):

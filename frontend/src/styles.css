@@ -204,6 +204,16 @@ th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #edf1f5;
 .gf-map { height: 60vh; border-radius: var(--radius); overflow: hidden; }
 .gf-map .leaflet-container { height: 100%; width: 100%; }
 .gf-empty { background: var(--card); border-radius: var(--radius); padding: 60px 20px; text-align: center; }
+.gf-offices h3, .gf-draft h3 { margin: 0 0 4px; }
+.gf-controls { display: grid; gap: 8px; }
+.gf-office-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.gf-office { width: auto; min-width: 150px; padding: 8px 10px; border: 1px solid #cfd8e3; border-radius: 10px; background: #fff; color: var(--text); text-align: left; }
+.gf-office span { display: block; font-weight: 650; }
+.gf-office.active { border-color: var(--navy); background: #eef2f9; color: var(--navy); }
+.gf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.gf-actions .btn { width: auto; margin: 0; padding: 10px 12px; }
+.gf-add-active { box-shadow: 0 0 0 3px rgba(44, 63, 160, .18); }
+.btn.danger { color: var(--red); border-color: #e9bab5; }
 
 /* ---------- Every button/link fills its whole clickable area, not just the text ---------- */
 button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cursor: pointer; }
@@ -259,6 +269,19 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
 
   /* Geofence editor becomes a fixed-height, no-scroll working screen: toolbar + map share
      the viewport instead of stacking, so drawing a boundary never needs the page to scroll. */
-  .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 20px 32px; }
-  .gf-map, .gf-empty { flex: 1; min-height: 0; height: auto; }
+  .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 14px 24px; gap: 7px; overflow: hidden; }
+  .gf-toolbar { flex: 0 0 auto; margin-bottom: 0; }
+  /* Keep management controls compact. The map is the primary working surface. */
+  .gf-controls { grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); flex: 0 0 138px; min-height: 0; }
+  .gf-controls .card { min-height: 0; margin: 0; padding: 8px 10px; overflow: hidden; }
+  .gf-controls h3 { font-size: 15px; }
+  .gf-controls small { font-size: 11px; }
+  .gf-controls label { margin: 3px 0 1px; }
+  .gf-controls input { min-height: 36px; padding: 6px 9px; }
+  .gf-office-list { flex-wrap: nowrap; max-width: 100%; margin-top: 5px; padding-bottom: 3px; overflow-x: auto; overflow-y: hidden; }
+  .gf-office { flex: 0 0 auto; min-width: 112px; padding: 4px 7px; }
+  .gf-actions { margin-top: 5px; }
+  .gf-actions .btn { min-height: 32px; padding: 5px 8px; font-size: 12px; }
+  .gf-map, .gf-empty { flex: 1 1 auto; min-height: 420px; height: auto; }
 }
+

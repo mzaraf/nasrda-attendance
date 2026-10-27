@@ -30,7 +30,7 @@ def inside_geofence(gf, lat, lng, centre):
 
 
 def resolve_campus(user, lat, lng):
-    """First allowed campus whose active geofence contains the point, else None."""
+    """First allowed campus/office zone whose active boundary contains the point."""
     from apps.org.models import Campus
     campuses = Campus.objects.filter(id__in=user.allowed_campus_ids(), is_active=True) \
                              .prefetch_related("geofences")
@@ -40,5 +40,5 @@ def resolve_campus(user, lat, lng):
                 continue
             ok, dist = inside_geofence(gf, lat, lng, (campus.latitude, campus.longitude))
             if ok:
-                return campus, dist
-    return None, None
+                return campus, gf, dist
+    return None, None, None

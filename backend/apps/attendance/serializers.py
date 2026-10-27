@@ -4,7 +4,6 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.org.models import Campus, Department, Geofence
-from .geo import haversine_m
 from .models import ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule
 
 
@@ -57,11 +56,7 @@ class CategorySerializer(serializers.ModelSerializer):
 class GeofenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Geofence
-        fields = ["id", "campus", "kind", "radius_m", "polygon", "is_active"]
-
-    # How far a drawn point may sit from the campus's stored centre before it's rejected as
-    # almost certainly a mistake (map zoomed out too far, wrong campus selected, a stray click).
-    MAX_POINT_DISTANCE_M = 5000
+        fields = ["id", "campus", "name", "kind", "radius_m", "polygon", "is_active"]
 
     def validate(self, d):
         # Partial updates (the "edit an existing boundary" PATCH from GeofenceEditor) don't
@@ -84,16 +79,6 @@ class GeofenceSerializer(serializers.ModelSerializer):
                 if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
                     raise serializers.ValidationError({"polygon": f"Point {i} is outside valid Earth coordinates."})
 
-            campus = d.get("campus") or getattr(self.instance, "campus", None)
-            if campus:
-                far_points = [str(i) for i, (lat, lng) in enumerate(poly, start=1)
-                             if haversine_m(lat, lng, campus.latitude, campus.longitude) > self.MAX_POINT_DISTANCE_M]
-                if far_points:
-                    raise serializers.ValidationError({"polygon":
-                        f"Point(s) {', '.join(far_points)} are more than "
-                        f"{self.MAX_POINT_DISTANCE_M // 1000}km from {campus.name}'s stored location. "
-                        "Check you're drawing on the right campus, or if the boundary is correct, "
-                        "update the campus's stored latitude/longitude first."})
         return d
 
 

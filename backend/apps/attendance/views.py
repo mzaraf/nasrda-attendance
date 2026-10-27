@@ -558,12 +558,17 @@ class GeofenceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, s):
         obj = s.save()
-        log(self.request, self.request.user, "geofence.created", f"campus {obj.campus_id}", new=s.data)
+        log(self.request, self.request.user, "geofence.created", f"{obj.name} at {obj.campus.name}", new=s.data)
 
     def perform_update(self, s):
         old = GeofenceSerializer(self.get_object()).data
-        s.save()
-        log(self.request, self.request.user, "geofence.updated", "", previous=old, new=s.data)
+        obj = s.save()
+        log(self.request, self.request.user, "geofence.updated", f"{obj.name} at {obj.campus.name}", previous=old, new=s.data)
+
+    def perform_destroy(self, instance):
+        description = f"{instance.name} at {instance.campus.name}"
+        instance.delete()
+        log(self.request, self.request.user, "geofence.deleted", description)
 
 # ---- Staff self-service: request a correction ----
 class CorrectionRequest(APIView):

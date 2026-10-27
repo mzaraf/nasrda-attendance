@@ -91,6 +91,7 @@ class AttendanceLocation(models.Model):
     inside_geofence = models.BooleanField()
     distance_m = models.FloatField(null=True)
     campus = models.ForeignKey("org.Campus", on_delete=models.PROTECT)
+    geofence = models.ForeignKey("org.Geofence", null=True, blank=True, on_delete=models.SET_NULL)
     device = models.ForeignKey("devices.RegisteredDevice", null=True, on_delete=models.SET_NULL)
     auth_method = models.CharField(max_length=20)            # passkey | password_only
     ip_address = models.GenericIPAddressField(null=True)

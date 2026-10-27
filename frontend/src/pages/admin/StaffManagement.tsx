@@ -6,7 +6,7 @@ import { useAuth } from "../../auth";
 type Staff = { id: number; ippis_number: string; first_name: string; last_name: string;
                middle_name: string; email: string; phone: string; file_number: string;
                department: number | null; department_name: string; designation: string;
-               grade_level: string; employment_status: string; primary_campus: number | null;
+               grade_level: string; employment_status: string; primary_campus: number | null; secondary_campus_ids: number[];
                campus_name: string; campus_policy: string; is_nursing_mother: boolean; mfa_enabled: boolean; is_active: boolean; role_ids: number[]; roles: string[] };
 type Option = { id: number; name: string };
 const byCampus = (departments: Option[], campusId: string | number) => !campusId ? departments : departments.filter((d: any) => d.campus_ids?.includes(Number(campusId)));
@@ -83,7 +83,7 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
     ippis_number: staff.ippis_number, first_name: staff.first_name, middle_name: staff.middle_name ?? "", last_name: staff.last_name,
     email: staff.email, phone: staff.phone ?? "", file_number: staff.file_number ?? "",
     department: staff.department ?? "", primary_campus: staff.primary_campus ?? "",
-    campus_policy: staff.campus_policy, designation: staff.designation ?? "",
+    campus_policy: staff.campus_policy, secondary_campus_ids: staff.secondary_campus_ids ?? [], designation: staff.designation ?? "",
     grade_level: staff.grade_level ?? "", employment_status: staff.employment_status, role_ids: staff.role_ids ?? [],
     is_nursing_mother: staff.is_nursing_mother ?? false,
     mfa_enabled: staff.mfa_enabled ?? false,
@@ -155,8 +155,8 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
           <div><label>Phone</label><input value={form.phone} onChange={set("phone")} /></div>
         </div>
 
-        <label>Primary campus</label>
-        <select value={form.primary_campus} onChange={(e) => setForm({ ...form, primary_campus: e.target.value, department: "" })}>
+        <label>Primary (home) campus</label>
+        <select value={form.primary_campus} onChange={(e) => { const primary_campus = e.target.value; setForm({ ...form, primary_campus, department: "", secondary_campus_ids: form.secondary_campus_ids.filter((id) => id !== Number(primary_campus)) }); }}>
           <option value="">— None —</option>
           {campuses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -168,10 +168,11 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
 
         <label>Campus policy</label>
         <select value={form.campus_policy} onChange={set("campus_policy")}>
-          <option value="one">One campus only</option>
-          <option value="approved">Approved campuses</option>
+          <option value="one">Primary campus only</option>
+          <option value="approved">Primary + selected campuses</option>
           <option value="any">Any NASRDA campus</option>
         </select>
+        {form.campus_policy === "approved" && <><label>Additional approved campuses</label><select multiple value={form.secondary_campus_ids.map(String)} onChange={(e) => setForm({ ...form, secondary_campus_ids: Array.from(e.target.selectedOptions, (o) => Number(o.value)) })}>{campuses.filter((c) => c.id !== Number(form.primary_campus)).length ? campuses.filter((c) => c.id !== Number(form.primary_campus)).map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option disabled>No other campuses are available</option>}</select><small className="muted">The primary campus is always allowed. This list shows other campuses only; hold Ctrl (or Cmd) to select them.</small></>}
 
         <div className="row">
           <div><label>Designation</label><input value={form.designation} onChange={set("designation")} /></div>
@@ -219,7 +220,7 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
 }
 
 function NewStaffModal({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState({ ippis_number: "", file_number: "", first_name: "", last_name: "", email: "", middle_name: "", phone: "", department: "", primary_campus: "", designation: "", grade_level: "", employment_status: "permanent", campus_policy: "one", is_nursing_mother: false, mfa_enabled: false, role_ids: [] as number[] });
+  const [form, setForm] = useState({ ippis_number: "", file_number: "", first_name: "", last_name: "", email: "", middle_name: "", phone: "", department: "", primary_campus: "", designation: "", grade_level: "", employment_status: "permanent", campus_policy: "one", secondary_campus_ids: [] as number[], is_nursing_mother: false, mfa_enabled: false, role_ids: [] as number[] });
   const [msg, setMsg] = useState("");
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const qc = useQueryClient();
@@ -238,7 +239,9 @@ function NewStaffModal({ onClose }: { onClose: () => void }) {
     <div className="row"><div><label>Email</label><input type="email" value={form.email} onChange={set("email")} /></div><div><label>Phone number</label><input type="tel" value={form.phone} onChange={set("phone")} inputMode="tel" /></div></div>
     <div className="row"><div><label>First name</label><input value={form.first_name} onChange={set("first_name")} /></div><div><label>Last name</label><input value={form.last_name} onChange={set("last_name")} /></div></div>
     <label>Middle name</label><input value={form.middle_name} onChange={set("middle_name")} />
-    <div className="row"><div><label>Primary campus</label><select value={form.primary_campus} onChange={(e) => setForm({ ...form, primary_campus: e.target.value, department: "" })}><option value="">— None —</option>{campuses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div><label>Department</label><select value={form.department} disabled={!form.primary_campus} onChange={set("department")}><option value="">{form.primary_campus ? "— Select department —" : "— Select campus first —"}</option>{byCampus(departments, form.primary_campus).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div></div>
+    <div className="row"><div><label>Primary (home) campus</label><select value={form.primary_campus} onChange={(e) => { const primary_campus = e.target.value; setForm({ ...form, primary_campus, department: "", secondary_campus_ids: form.secondary_campus_ids.filter((id) => id !== Number(primary_campus)) }); }}><option value="">— None —</option>{campuses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div><label>Department</label><select value={form.department} disabled={!form.primary_campus} onChange={set("department")}><option value="">{form.primary_campus ? "— Select department —" : "— Select campus first —"}</option>{byCampus(departments, form.primary_campus).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div></div>
+    <label>Campus policy</label><select value={form.campus_policy} onChange={set("campus_policy")}><option value="one">Primary campus only</option><option value="approved">Primary + selected campuses</option><option value="any">Any NASRDA campus</option></select>
+    {form.campus_policy === "approved" && <><label>Additional approved campuses</label><select multiple value={form.secondary_campus_ids.map(String)} onChange={(e) => setForm({ ...form, secondary_campus_ids: Array.from(e.target.selectedOptions, (o) => Number(o.value)) })}>{campuses.filter((c) => c.id !== Number(form.primary_campus)).length ? campuses.filter((c) => c.id !== Number(form.primary_campus)).map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option disabled>No other campuses are available</option>}</select><small className="muted">The primary campus is always allowed. This list shows other campuses only; hold Ctrl (or Cmd) to select them.</small></>}
     <div className="row"><div><label>Designation</label><input value={form.designation} onChange={set("designation")} /></div><div><label>Grade level</label><input value={form.grade_level} onChange={set("grade_level")} /></div></div>
     <label className="staff-toggle"><input type="checkbox" checked={form.is_nursing_mother} onChange={(e) => setForm({ ...form, is_nursing_mother: e.target.checked })} /><span>Nursing mother — eligible for the configured early check-out time</span></label>
     <label className="staff-toggle"><input type="checkbox" checked={form.mfa_enabled} onChange={(e) => setForm({ ...form, mfa_enabled: e.target.checked })} /><span>Require authenticator-app MFA at sign-in</span></label>

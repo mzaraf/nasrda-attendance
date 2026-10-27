@@ -27,6 +27,7 @@ class Geofence(models.Model):
         POLYGON = "polygon"
 
     campus = models.ForeignKey(Campus, on_delete=models.CASCADE, related_name="geofences")
+    name = models.CharField(max_length=120, default="Campus location")
     kind = models.CharField(max_length=10, choices=Kind.choices)
     radius_m = models.FloatField(null=True, blank=True)          # circle only
     polygon = models.JSONField(null=True, blank=True)            # [[lat,lng], ...] polygon only

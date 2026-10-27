@@ -37,7 +37,7 @@ def _verify_location(request, user, data, action):
         raise DomainError("ACCURACY_INSUFFICIENT",
                           "Your location accuracy is currently insufficient. "
                           "Please move to an open area and try again.")
-    campus, dist = geo.resolve_campus(user, lat, lng)
+    campus, geofence, dist = geo.resolve_campus(user, lat, lng)
     if not campus:
         log(request, user, "geofence.violation", f"{action} outside geofence",
             new={"lat": lat, "lng": lng, "accuracy": acc})
@@ -51,13 +51,13 @@ def _verify_location(request, user, data, action):
         secs = max((timezone.now() - prev.recorded_at).total_seconds(), 1)
         if geo.haversine_m(prev.latitude, prev.longitude, lat, lng) / secs > get_setting("max_speed_mps"):
             flags.append("impossible_location_jump")
-    return campus, dist, flags
+    return campus, geofence, dist, flags
 
 
-def _evidence(request, record, event, data, campus, dist, device, method, flags, now):
+def _evidence(request, record, event, data, campus, geofence, dist, device, method, flags, now):
     return AttendanceLocation.objects.create(
         record=record, event=event, latitude=data["latitude"], longitude=data["longitude"],
-        accuracy_m=data["accuracy"], inside_geofence=True, distance_m=dist, campus=campus,
+        accuracy_m=data["accuracy"], inside_geofence=True, distance_m=dist, campus=campus, geofence=geofence,
         device=device, auth_method=method, ip_address=client_ip(request),
         user_agent=request.META.get("HTTP_USER_AGENT", "")[:300], flags=flags, recorded_at=now)
 
@@ -108,7 +108,7 @@ def check_in(request, user, data):
         raise DomainError("CHECKIN_CLOSED", f"Check-in closed at {get_setting('checkin_closes_after')}. You are recorded as absent for today.", 403)
     _, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-in")
     device = _require_approved_device(user, data.get("device_token"))
-    campus, dist, flags = _verify_location(request, user, data, "check-in")
+    campus, geofence, dist, flags = _verify_location(request, user, data, "check-in")
 
     # SERVER time: the only time we trust
     try:
@@ -120,8 +120,8 @@ def check_in(request, user, data):
     except IntegrityError:                      # DB-level duplicate protection
         raise DomainError("ALREADY_CHECKED_IN", "You have already checked in today.", 409)
 
-    _evidence(request, record, "in", data, campus, dist, device, method, flags, now)
-    log(request, user, "attendance.check_in", f"{campus.name} {record.check_in_status}",
+    _evidence(request, record, "in", data, campus, geofence, dist, device, method, flags, now)
+    log(request, user, "attendance.check_in", f"{campus.name} — {geofence.name}: {record.check_in_status}",
         new={"record": record.pk, "flags": flags})
     return record
 
@@ -136,7 +136,7 @@ def check_out(request, user, data):
                           f"Check-out opens at {checkout_after}.", 403)
     _, method = _require_face_verification(request, user, data.get("face_verification_id"), "check-out")
     device = _require_approved_device(user, data.get("device_token"))
-    campus, dist, flags = _verify_location(request, user, data, "check-out")
+    campus, geofence, dist, flags = _verify_location(request, user, data, "check-out")
 
     now = timezone.now()
     local = timezone.localtime(now)
@@ -157,6 +157,6 @@ def check_out(request, user, data):
             record.flags = list(set(record.flags) | set(flags))
             record.review_status = "review_required"
         record.save()
-        _evidence(request, record, "out", data, campus, dist, device, method, flags, now)
-    log(request, user, "attendance.check_out", f"{status}", new={"record": record.pk})
+        _evidence(request, record, "out", data, campus, geofence, dist, device, method, flags, now)
+    log(request, user, "attendance.check_out", f"{campus.name} — {geofence.name}: {status}", new={"record": record.pk})
     return record
