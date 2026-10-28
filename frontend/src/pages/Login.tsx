@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, errorOf } from "../api";
 import { useAuth } from "../auth";
@@ -15,6 +15,24 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   const [mfaCode, setMfaCode] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const ippisRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Password managers can fill native inputs after React has mounted, without
+  // firing React's onChange event. Read the DOM values briefly after mount so
+  // a visibly filled form also enables its Sign in button.
+  const syncSavedCredentials = () => {
+    const savedIppis = ippisRef.current?.value ?? "";
+    const savedPassword = passwordRef.current?.value ?? "";
+    if (savedIppis) setIppis((current) => current || savedIppis);
+    if (savedPassword) setPassword((current) => current || savedPassword);
+  };
+  useEffect(() => {
+    syncSavedCredentials();
+    const timer = window.setInterval(syncSavedCredentials, 200);
+    const stopTimer = window.setTimeout(() => window.clearInterval(timer), 3000);
+    return () => { window.clearInterval(timer); window.clearTimeout(stopTimer); };
+  }, []);
 
   const submit = async () => {
     setBusy(true); setErr("");
@@ -71,13 +89,13 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
           <button className="btn" disabled={busy} onClick={() => { setResetMode(false); setErr(""); }}>Back to sign in</button>
         </> : <>
         <label>IPPIS Number</label>
-        <input value={ippis} onChange={(e) => setIppis(e.target.value)}
+        <input ref={ippisRef} name="username" value={ippis} onChange={(e) => setIppis(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials}
                inputMode="numeric" autoComplete="username" autoCapitalize="off" spellCheck={false} />
 
         <label>Password</label>
         <div className="password-field">
-          <input type={showPassword ? "text" : "password"} value={password}
-                 onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
+          <input ref={passwordRef} name="password" type={showPassword ? "text" : "password"} value={password}
+                 onChange={(e) => setPassword(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} autoComplete="current-password"
                  onKeyDown={(e) => e.key === "Enter" && submit()} />
           <button type="button" className="eye-btn" tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}

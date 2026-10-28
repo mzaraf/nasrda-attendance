@@ -168,9 +168,9 @@ function EditStaffModal({ staff, onClose, onSaved }: { staff: Staff; onClose: ()
 
         <label>Campus policy</label>
         <select value={form.campus_policy} onChange={set("campus_policy")}>
-          <option value="one">Primary campus only</option>
-          <option value="approved">Primary + selected campuses</option>
-          <option value="any">Any NASRDA campus</option>
+          <option value="one">Primary campus</option>
+          <option value="approved">Primary campus + selected campuses</option>
+          <option value="any">Any campus</option>
         </select>
         {form.campus_policy === "approved" && <><label>Additional approved campuses</label><select multiple value={form.secondary_campus_ids.map(String)} onChange={(e) => setForm({ ...form, secondary_campus_ids: Array.from(e.target.selectedOptions, (o) => Number(o.value)) })}>{campuses.filter((c) => c.id !== Number(form.primary_campus)).length ? campuses.filter((c) => c.id !== Number(form.primary_campus)).map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option disabled>No other campuses are available</option>}</select><small className="muted">The primary campus is always allowed. This list shows other campuses only; hold Ctrl (or Cmd) to select them.</small></>}
 
@@ -240,7 +240,7 @@ function NewStaffModal({ onClose }: { onClose: () => void }) {
     <div className="row"><div><label>First name</label><input value={form.first_name} onChange={set("first_name")} /></div><div><label>Last name</label><input value={form.last_name} onChange={set("last_name")} /></div></div>
     <label>Middle name</label><input value={form.middle_name} onChange={set("middle_name")} />
     <div className="row"><div><label>Primary (home) campus</label><select value={form.primary_campus} onChange={(e) => { const primary_campus = e.target.value; setForm({ ...form, primary_campus, department: "", secondary_campus_ids: form.secondary_campus_ids.filter((id) => id !== Number(primary_campus)) }); }}><option value="">— None —</option>{campuses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div><label>Department</label><select value={form.department} disabled={!form.primary_campus} onChange={set("department")}><option value="">{form.primary_campus ? "— Select department —" : "— Select campus first —"}</option>{byCampus(departments, form.primary_campus).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></div></div>
-    <label>Campus policy</label><select value={form.campus_policy} onChange={set("campus_policy")}><option value="one">Primary campus only</option><option value="approved">Primary + selected campuses</option><option value="any">Any NASRDA campus</option></select>
+    <label>Campus policy</label><select value={form.campus_policy} onChange={set("campus_policy")}><option value="one">Primary campus</option><option value="approved">Primary campus + selected campuses</option><option value="any">Any campus</option></select>
     {form.campus_policy === "approved" && <><label>Additional approved campuses</label><select multiple value={form.secondary_campus_ids.map(String)} onChange={(e) => setForm({ ...form, secondary_campus_ids: Array.from(e.target.selectedOptions, (o) => Number(o.value)) })}>{campuses.filter((c) => c.id !== Number(form.primary_campus)).length ? campuses.filter((c) => c.id !== Number(form.primary_campus)).map((c) => <option key={c.id} value={c.id}>{c.name}</option>) : <option disabled>No other campuses are available</option>}</select><small className="muted">The primary campus is always allowed. This list shows other campuses only; hold Ctrl (or Cmd) to select them.</small></>}
     <div className="row"><div><label>Designation</label><input value={form.designation} onChange={set("designation")} /></div><div><label>Grade level</label><input value={form.grade_level} onChange={set("grade_level")} /></div></div>
     <label className="staff-toggle"><input type="checkbox" checked={form.is_nursing_mother} onChange={(e) => setForm({ ...form, is_nursing_mother: e.target.checked })} /><span>Nursing mother — eligible for the configured early check-out time</span></label>
@@ -281,7 +281,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
       <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 900, margin: "0 auto" }}>
         <h3>Bulk import staff</h3>
         <p className="muted">
-          Upload a CSV or Excel file containing staff information. The downloadable template includes an optional Phone column.
+          Upload a CSV or Excel file containing staff profile information.
         </p>
         <a className="link" href="/staff-import-sample.csv" download>Download sample CSV template</a>
         {!preview && <input type="file" accept=".csv,.xlsx" onChange={(e) => e.target.files && upload(e.target.files[0])} />}

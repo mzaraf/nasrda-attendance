@@ -213,6 +213,7 @@ th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #edf1f5;
 .gf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .gf-actions .btn { width: auto; margin: 0; padding: 10px 12px; }
 .gf-state-actions { display: inline-flex; flex: 0 0 auto; gap: 8px; }
+.gf-department-select { height: 58px; min-height: 58px; max-height: 58px; margin-top: 2px; }
 .gf-add-active { box-shadow: 0 0 0 3px rgba(44, 63, 160, .18); }
 .btn.danger { color: var(--red); border-color: #e9bab5; }
 
@@ -274,7 +275,7 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-toolbar { flex: 0 0 auto; margin-bottom: 0; }
   /* Keep management controls compact. The map is the primary working surface. */
   /* Keep the complete office form, including its Save button, above the map. */
-  .gf-controls { grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); flex: 0 0 220px; min-height: 0; }
+  .gf-controls { grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); flex: 0 0 270px; min-height: 0; }
   .gf-controls .card { min-height: 0; margin: 0; padding: 8px 10px; }
   .gf-offices { overflow: hidden; }
   .gf-draft { overflow: visible; position: relative; z-index: 2; }
@@ -282,11 +283,12 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-controls small { font-size: 11px; }
   .gf-controls label { margin: 3px 0 1px; }
   .gf-controls input { min-height: 36px; padding: 6px 9px; }
+  .gf-controls .gf-department-select { height: 50px; min-height: 50px; max-height: 50px; padding: 3px 7px; }
   .gf-office-list { flex-wrap: nowrap; max-width: 100%; margin-top: 5px; padding-bottom: 3px; overflow-x: auto; overflow-y: hidden; }
   .gf-office { flex: 0 0 auto; min-width: 112px; padding: 4px 7px; }
-  .gf-actions { flex-wrap: nowrap; gap: 5px; margin-top: 5px; }
-  .gf-actions .btn { min-height: 32px; padding: 5px 7px; font-size: 12px; white-space: nowrap; }
-  .gf-state-actions { gap: 5px; }
+  .gf-actions { flex-wrap: nowrap; gap: 3px; margin-top: 5px; }
+  .gf-actions .btn { min-height: 32px; padding: 5px 5px; font-size: 11px; white-space: nowrap; }
+  .gf-state-actions { gap: 3px; }
   .gf-map, .gf-empty { flex: 1 1 auto; min-height: 0; height: auto; }
 }
 

@@ -1,2 +1,2 @@
-IPPIS Number,First Name,Last Name,Email,File Number,Middle Name,Phone,Department,Designation,Grade Level,Campus,Role
-10000001,Amina,Bello,amina.bello@example.gov.ng,NASRDA/HR/001,,08000000000,Administration,Administrative Officer,GL 08,Headquarters,Staff
+IPPIS Number,First Name,Last Name,Email,File Number,Middle Name,Phone,Department,Designation,Grade Level,Employment Status,Primary (home) campus,Campus policy,Additional approved campuses,Nursing mother,Require authenticator-app MFA at sign-in,Role
+10000001,Amina,Bello,amina.bello@example.gov.ng,NASRDA/HR/001,,08000000000,Administration,Administrative Officer,GL 08,permanent,Headquarters,Primary campus + selected campuses,ICT Annex;Space Centre,No,No,Staff

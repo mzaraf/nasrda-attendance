@@ -186,7 +186,32 @@ class ChangePassword(APIView):
 
 
 REQUIRED_COLUMNS = ["IPPIS Number", "First Name", "Last Name", "Email"]
-OPTIONAL_COLUMNS = ["File Number", "Middle Name", "Phone", "Department", "Designation", "Grade Level", "Campus", "Role"]
+OPTIONAL_COLUMNS = [
+    "File Number", "Middle Name", "Phone", "Department", "Designation", "Grade Level",
+    "Employment Status", "Primary (home) campus", "Campus policy", "Additional approved campuses",
+    "Nursing mother", "Require authenticator-app MFA at sign-in", "Role",
+]
+COLUMN_KEYS = {
+    "Primary (home) campus": "campus",
+    "Campus policy": "campus_policy",
+    "Additional approved campuses": "additional_approved_campuses",
+    "Nursing mother": "nursing_mother",
+    "Require authenticator-app MFA at sign-in": "mfa_enabled",
+}
+LEGACY_COLUMN_NAMES = {
+    "Primary (home) campus": "Campus",
+    "Campus policy": "Campus Policy",
+    "Additional approved campuses": "Additional Approved Campuses",
+    "Nursing mother": "Nursing Mother",
+    "Require authenticator-app MFA at sign-in": "MFA Enabled",
+}
+TRUE_VALUES = {"yes", "y", "true", "1"}
+FALSE_VALUES = {"", "no", "n", "false", "0"}
+POLICY_VALUES = {
+    "one": "one", "one campus only": "one", "primary campus only": "one", "primary campus": "one",
+    "approved": "approved", "approved campuses": "approved", "primary + selected campuses": "approved", "primary campus + selected campuses": "approved",
+    "any": "any", "any nasrda campus": "any", "any campus": "any",
+}
 
 
 class StaffImportPreview(APIView):
@@ -238,9 +263,10 @@ class StaffImportPreview(APIView):
         rows, seen = [], set()
         for raw in raw_rows:
             def get(col):
-                return value_at(raw, idx[col]) if col in idx else ""
+                source_column = col if col in idx else LEGACY_COLUMN_NAMES.get(col)
+                return value_at(raw, idx[source_column]) if source_column in idx else ""
 
-            row = {c.lower().replace(" ", "_"): get(c) for c in REQUIRED_COLUMNS + OPTIONAL_COLUMNS}
+            row = {COLUMN_KEYS.get(c, c.lower().replace(" ", "_")): get(c) for c in REQUIRED_COLUMNS + OPTIONAL_COLUMNS}
             errors = []
             if not row["ippis_number"]:
                 errors.append("Missing IPPIS Number")
@@ -255,6 +281,25 @@ class StaffImportPreview(APIView):
             if row["department"] and row["campus"] and row["department"] in depts and row["campus"] in campuses \
                     and not campuses[row["campus"]].departments.filter(pk=depts[row["department"]].pk).exists():
                 errors.append(f"Department '{row['department']}' is not assigned to campus '{row['campus']}'")
+            row["employment_status"] = row["employment_status"] or "permanent"
+            policy_value = row["campus_policy"].casefold()
+            row["campus_policy"] = POLICY_VALUES.get(policy_value, "one")
+            if policy_value and policy_value not in POLICY_VALUES:
+                errors.append("Campus policy must be Primary campus, Primary campus + selected campuses, or Any campus")
+            row["secondary_campus_names"] = [name.strip() for name in row["additional_approved_campuses"].split(";") if name.strip()]
+            unknown_secondary = [name for name in row["secondary_campus_names"] if name not in campuses]
+            if unknown_secondary:
+                errors.append(f"Unknown additional campus(es): {', '.join(unknown_secondary)}")
+            if row["campus_policy"] != "approved" and row["secondary_campus_names"]:
+                errors.append("Additional approved campuses can only be used with Campus policy 'Primary campus + selected campuses'")
+            if row["campus"] and row["campus"] in row["secondary_campus_names"]:
+                errors.append("Primary (home) campus must not also appear in Additional approved campuses")
+            for column, key in (("nursing_mother", "is_nursing_mother"), ("mfa_enabled", "mfa_enabled")):
+                value = row[column].casefold()
+                if value not in TRUE_VALUES | FALSE_VALUES:
+                    label = "Nursing mother" if column == "nursing_mother" else "Require authenticator-app MFA at sign-in"
+                    errors.append(f"{label} must be Yes or No")
+                row[key] = value in TRUE_VALUES
             row["role_names"] = [name.strip() for name in row["role"].split(";") if name.strip()]
             unknown_roles = [name for name in row["role_names"] if name not in roles]
             if unknown_roles:
@@ -298,11 +343,17 @@ class StaffImportCommit(APIView):
                          last_name=row["last_name"], file_number=row.get("file_number", ""), middle_name=row.get("middle_name", ""),
                          email=row["email"], phone=row.get("phone", ""),
                          designation=row.get("designation", ""), grade_level=row.get("grade_level", ""),
+                         employment_status=row.get("employment_status", "permanent"),
                          department=depts.get(row.get("department", "")),
-                         primary_campus=campuses.get(row.get("campus", "")))
+                         primary_campus=campuses.get(row.get("campus", "")),
+                         campus_policy=row.get("campus_policy", "one"),
+                         is_nursing_mother=row.get("is_nursing_mother", False),
+                         mfa_enabled=row.get("mfa_enabled", False))
                 password = secrets.token_urlsafe(9)
                 u.set_password(password)
                 u.save()
+                if u.campus_policy == User.CampusPolicy.APPROVED:
+                    u.secondary_campuses.set([campuses[name] for name in row.get("secondary_campus_names", [])])
                 u.groups.set([roles[name] for name in row.get("role_names", [])])
                 send_credentials(u, password)
                 created += 1
