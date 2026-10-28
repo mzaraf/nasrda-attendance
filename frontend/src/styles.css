@@ -290,6 +290,8 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-controls input { min-height: 36px; padding: 6px 9px; }
   .gf-controls .gf-department-trigger { min-height: 36px; padding: 6px 9px; font-size: 12px; }
   .gf-controls .gf-department-menu { max-height: 104px; }
+  .gf-controls .gf-department-menu label { margin: 0; padding: 3px 5px; }
+  .gf-controls .gf-department-menu input { width: 16px; height: 16px; min-height: 16px; padding: 0; border: 0; }
   .gf-office-list { flex-wrap: nowrap; max-width: 100%; margin-top: 5px; padding-bottom: 3px; overflow-x: auto; overflow-y: hidden; }
   .gf-office { flex: 0 0 auto; min-width: 112px; padding: 4px 7px; }
   .gf-actions { flex-wrap: nowrap; gap: 3px; margin-top: 5px; }
