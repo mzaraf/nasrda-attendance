@@ -608,7 +608,7 @@ export default function GeofenceEditor() {
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer url={TILES} attribution="© OpenStreetMap" />
-              <Recentre centre={centre} paused={!!selectedBuilding} />
+              <Recentre centre={centre} paused={mode !== "idle" || !!selectedBuilding} />
               <FocusBuilding building={selectedBuilding} />
               <Clicker
                 onAdd={(point) => {
