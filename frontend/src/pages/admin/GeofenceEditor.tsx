@@ -400,7 +400,7 @@ export default function GeofenceEditor() {
                   <label>Campus area name</label>
                   <input
                     value={name}
-                    placeholder="e.g. Bukuru Annex"
+                    placeholder="e.g. NASRDA Annex"
                     onChange={(event) => setName(event.target.value)}
                   />
                   <small className="muted">
