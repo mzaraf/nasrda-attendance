@@ -292,7 +292,7 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-controls .gf-department-menu { max-height: 104px; }
   .gf-controls .gf-department-menu label { margin: 0; padding: 3px 5px; }
   .gf-controls .gf-department-menu input { width: 16px; height: 16px; min-height: 16px; padding: 0; border: 0; }
-  .gf-office-list { flex: 0 1 auto; min-height: 0; max-width: 100%; margin-top: 5px; padding-right: 3px; overflow-x: hidden; overflow-y: auto; }
+  .gf-offices > .gf-office-list { flex: 0 1 auto; min-height: 0; max-height: 120px; max-width: 100%; margin-top: 5px; padding-right: 5px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
   .gf-office { flex: 0 0 auto; padding: 4px 7px; }
   .gf-actions { position: static; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin-top: 7px; padding: 0; border: 0; background: none; box-shadow: none; }
   .gf-actions .btn { width: 100%; min-height: 34px; padding: 5px 3px; font-size: 10px; white-space: nowrap; }
