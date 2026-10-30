@@ -51,11 +51,22 @@ function Clicker({ onAdd }: { onAdd: (point: Pt) => void }) {
   });
   return null;
 }
-function Recentre({ centre }: { centre: Pt }) {
+function Recentre({ centre, paused }: { centre: Pt; paused: boolean }) {
   const map = useMap();
   useEffect(() => {
+    if (paused) return;
     map.setView(centre, 15);
-  }, [centre[0], centre[1]]);
+  }, [centre[0], centre[1], paused]);
+  return null;
+}
+
+function FocusBuilding({ building }: { building: Geofence | undefined }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!building?.polygon || building.polygon.length < 3) return;
+    const bounds = L.latLngBounds(building.polygon);
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 19 });
+  }, [building?.id]);
   return null;
 }
 
@@ -597,7 +608,8 @@ export default function GeofenceEditor() {
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer url={TILES} attribution="© OpenStreetMap" />
-              <Recentre centre={centre} />
+              <Recentre centre={centre} paused={!!selectedBuilding} />
+              <FocusBuilding building={selectedBuilding} />
               <Clicker
                 onAdd={(point) => {
                   if (mode !== "idle") setPoints((value) => [...value, point]);
