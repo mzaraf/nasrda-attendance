@@ -13,7 +13,9 @@ def send_email(subject, message, recipients):
     if not recipients or not getattr(settings, "EMAIL_HOST", "") or not getattr(settings, "DEFAULT_FROM_EMAIL", ""):
         return False
     try:
-        return bool(send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=True))
+        # Keep the business action resilient, but let the server log the actual
+        # SMTP reason so an administrator can correct mail configuration.
+        return bool(send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=False))
     except Exception:  # A mail outage must never break attendance or approvals.
         logger.exception("Email notification could not be sent")
         return False

@@ -206,8 +206,8 @@ th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #edf1f5;
 .gf-empty { background: var(--card); border-radius: var(--radius); padding: 60px 20px; text-align: center; }
 .gf-offices h3, .gf-draft h3 { margin: 0 0 4px; }
 .gf-controls { display: grid; gap: 8px; }
-.gf-office-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.gf-office { width: auto; min-width: 150px; padding: 8px 10px; border: 1px solid #cfd8e3; border-radius: 10px; background: #fff; color: var(--text); text-align: left; }
+.gf-office-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.gf-office { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid #cfd8e3; border-radius: 10px; background: #fff; color: var(--text); text-align: left; }
 .gf-office span { display: block; font-weight: 650; }
 .gf-office.active { border-color: var(--navy); background: #eef2f9; color: var(--navy); }
 .gf-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -282,7 +282,7 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   /* Keep the complete office form, including its Save button, above the map. */
   .gf-controls { position: relative; z-index: 1000; grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); flex: 0 0 255px; min-height: 0; }
   .gf-controls .card { min-height: 0; margin: 0; padding: 8px 10px; }
-  .gf-offices { overflow: hidden; }
+  .gf-offices { display: flex; flex-direction: column; overflow: hidden; }
   .gf-draft { overflow: visible; position: relative; z-index: 1001; }
   .gf-controls h3 { font-size: 15px; }
   .gf-controls small { font-size: 11px; }
@@ -292,8 +292,8 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-controls .gf-department-menu { max-height: 104px; }
   .gf-controls .gf-department-menu label { margin: 0; padding: 3px 5px; }
   .gf-controls .gf-department-menu input { width: 16px; height: 16px; min-height: 16px; padding: 0; border: 0; }
-  .gf-office-list { flex-wrap: nowrap; max-width: 100%; margin-top: 5px; padding-bottom: 3px; overflow-x: auto; overflow-y: hidden; }
-  .gf-office { flex: 0 0 auto; min-width: 112px; padding: 4px 7px; }
+  .gf-office-list { flex: 1 1 auto; min-height: 0; max-width: 100%; margin-top: 5px; padding-right: 3px; overflow-x: hidden; overflow-y: auto; }
+  .gf-office { flex: 0 0 auto; padding: 4px 7px; }
   .gf-actions { flex-wrap: nowrap; gap: 3px; margin-top: 5px; }
   .gf-actions .btn { min-height: 32px; padding: 5px 5px; font-size: 11px; white-space: nowrap; }
   .gf-state-actions { gap: 3px; }
