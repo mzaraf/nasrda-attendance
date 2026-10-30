@@ -39,9 +39,9 @@ def _verify_location(request, user, data, action):
                           "Please move to an open area and try again.")
     campus, geofence, dist = geo.resolve_campus(user, lat, lng)
     if not campus:
-        log(request, user, "geofence.violation", f"{action} outside assigned building or campus boundary",
+        log(request, user, "geofence.violation", f"{action} outside assigned building or campus area",
             new={"lat": lat, "lng": lng, "accuracy": acc})
-        raise DomainError("OUTSIDE_GEOFENCE", "You must be inside your assigned department building and its campus boundary to record attendance.", 403)
+        raise DomainError("OUTSIDE_GEOFENCE", "You must be inside your assigned department building and its campus area to record attendance.", 403)
 
     flags = []
     if acc < 1:

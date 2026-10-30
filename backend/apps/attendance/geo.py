@@ -24,13 +24,18 @@ def resolve_campus(user, lat, lng):
     if not user.department_id:
         return None, None, None
     campuses = Campus.objects.filter(id__in=user.allowed_campus_ids(), is_active=True) \
-                             .prefetch_related("geofences__departments")
+                             .prefetch_related("areas", "geofences__departments")
     for campus in campuses:
-        # The campus is the outer boundary; a building alone is never sufficient.
-        if not campus.boundary or not point_in_polygon(lat, lng, campus.boundary):
+        # A campus can have several separate physical areas. Being inside a
+        # building alone is never sufficient: the location must also be in one
+        # of the campus's active area boundaries.
+        matching_area_ids = {area.id for area in campus.areas.all()
+                             if area.is_active and point_in_polygon(lat, lng, area.boundary)}
+        if not matching_area_ids:
             continue
         for gf in campus.geofences.all():
-            if not gf.is_active or not gf.departments.filter(pk=user.department_id).exists():
+            if (not gf.is_active or gf.campus_area_id not in matching_area_ids or
+                    not gf.departments.filter(pk=user.department_id).exists()):
                 continue
             ok, dist = inside_geofence(gf, lat, lng, (campus.latitude, campus.longitude))
             if ok:

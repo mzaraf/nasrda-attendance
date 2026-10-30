@@ -26,11 +26,11 @@ from apps.core.errors import DomainError
 from apps.core.emailing import send_email
 from apps.core.models import get_setting
 from apps.devices.models import DeviceRemovalRequest, RegisteredDevice
-from apps.org.models import Campus, Geofence
+from apps.org.models import Campus, CampusArea, Geofence
 from apps.org.models import Department
 from . import absence, face, rules, services, totp
 from .models import (ActivityAttachment, ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule, FaceProfile, FaceVerification)
-from .serializers import (ActivitySerializer, AttendanceRecordSerializer, CampusSerializer,
+from .serializers import (ActivitySerializer, AttendanceRecordSerializer, CampusAreaSerializer, CampusSerializer,
                           CategorySerializer, GeofenceSerializer, LocationInputSerializer,
                           CorrectionSerializer, HolidaySerializer, LeaveSerializer, OfficialDutySerializer, RecurringLeaveSerializer)
 
@@ -537,7 +537,7 @@ class AdminLive(APIView):
 
 
 class CampusViewSet(viewsets.ModelViewSet):
-    queryset = Campus.objects.prefetch_related("geofences")
+    queryset = Campus.objects.prefetch_related("areas", "geofences__departments")
     serializer_class = CampusSerializer
     permission_classes = [IsAuthenticated, HasAnyPerm]
     required_perms = ["accounts.geofence_manage"]
@@ -547,6 +547,30 @@ class CampusViewSet(viewsets.ModelViewSet):
         old = CampusSerializer(self.get_object()).data
         obj = s.save()
         log(self.request, self.request.user, "campus.updated", obj.name, previous=old, new=s.data)
+
+
+class CampusAreaViewSet(viewsets.ModelViewSet):
+    queryset = CampusArea.objects.select_related("campus").prefetch_related("geofences")
+    serializer_class = CampusAreaSerializer
+    permission_classes = [IsAuthenticated, HasAnyPerm]
+    required_perms = ["accounts.geofence_manage"]
+    pagination_class = None
+
+    def perform_create(self, s):
+        obj = s.save()
+        log(self.request, self.request.user, "campus_area.created", f"{obj.name} at {obj.campus.name}", new=s.data)
+
+    def perform_update(self, s):
+        old = CampusAreaSerializer(self.get_object()).data
+        obj = s.save()
+        log(self.request, self.request.user, "campus_area.updated", f"{obj.name} at {obj.campus.name}", previous=old, new=s.data)
+
+    def perform_destroy(self, instance):
+        if instance.geofences.exists():
+            raise DomainError("CAMPUS_AREA_HAS_BUILDINGS", "Remove or move the buildings in this campus area before removing it.")
+        description = f"{instance.name} at {instance.campus.name}"
+        instance.delete()
+        log(self.request, self.request.user, "campus_area.deleted", description)
 
 
 class GeofenceViewSet(viewsets.ModelViewSet):

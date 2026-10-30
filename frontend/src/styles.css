@@ -278,12 +278,12 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
      the viewport instead of stacking, so drawing a boundary never needs the page to scroll. */
   .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 14px 24px; gap: 7px; overflow: hidden; }
   .gf-toolbar { flex: 0 0 auto; margin-bottom: 0; }
-  /* Keep management controls compact. The map is the primary working surface. */
-  /* Keep the complete office form, including its Save button, above the map. */
-  .gf-controls { position: relative; z-index: 1000; grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); flex: 0 0 255px; min-height: 0; }
-  .gf-controls .card { min-height: 0; margin: 0; padding: 8px 10px; }
+  /* Keep the area and building panels visible above the map. Only the editing
+     actions float on the map, preserving the clear two-panel layout. */
+  .gf-controls { position: relative; z-index: 1000; grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); align-items: start; flex: 0 0 auto; min-height: 0; }
+  .gf-controls .card { min-height: 0; max-height: calc(100dvh - 170px); margin: 0; padding: 8px 10px; }
   .gf-offices { display: flex; flex-direction: column; overflow: hidden; }
-  .gf-draft { overflow: visible; position: relative; z-index: 1001; }
+  .gf-draft { position: relative; z-index: 1001; overflow: visible !important; }
   .gf-controls h3 { font-size: 15px; }
   .gf-controls small { font-size: 11px; }
   .gf-controls label { margin: 3px 0 1px; }
@@ -292,11 +292,11 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   .gf-controls .gf-department-menu { max-height: 104px; }
   .gf-controls .gf-department-menu label { margin: 0; padding: 3px 5px; }
   .gf-controls .gf-department-menu input { width: 16px; height: 16px; min-height: 16px; padding: 0; border: 0; }
-  .gf-office-list { flex: 1 1 auto; min-height: 0; max-width: 100%; margin-top: 5px; padding-right: 3px; overflow-x: hidden; overflow-y: auto; }
+  .gf-office-list { flex: 0 1 auto; min-height: 0; max-width: 100%; margin-top: 5px; padding-right: 3px; overflow-x: hidden; overflow-y: auto; }
   .gf-office { flex: 0 0 auto; padding: 4px 7px; }
-  .gf-actions { flex-wrap: nowrap; gap: 3px; margin-top: 5px; }
-  .gf-actions .btn { min-height: 32px; padding: 5px 5px; font-size: 11px; white-space: nowrap; }
-  .gf-state-actions { gap: 3px; }
+  .gf-actions { position: static; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin-top: 7px; padding: 0; border: 0; background: none; box-shadow: none; }
+  .gf-actions .btn { width: 100%; min-height: 34px; padding: 5px 3px; font-size: 10px; white-space: nowrap; }
+  .gf-state-actions { display: contents; }
   .gf-map { position: relative; z-index: 1; }
   .gf-map, .gf-empty { flex: 1 1 auto; min-height: 0; height: auto; }
 }

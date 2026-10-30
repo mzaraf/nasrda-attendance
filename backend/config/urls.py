@@ -10,6 +10,7 @@ from apps.core import views as core_views
 
 router = DefaultRouter()
 router.register("campuses", v.CampusViewSet)
+router.register("campus-areas", v.CampusAreaViewSet)
 router.register("geofences", v.GeofenceViewSet)
 router.register("leave", v.LeaveApprovalViewSet)
 router.register("official-duty", v.OfficialDutyViewSet)

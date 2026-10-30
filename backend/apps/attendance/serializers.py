@@ -3,7 +3,7 @@ from datetime import time
 from django.utils import timezone
 from rest_framework import serializers
 
-from apps.org.models import Campus, Department, Geofence
+from apps.org.models import Campus, CampusArea, Department, Geofence
 from apps.org.geometry import polygon_within_polygon
 from .models import ActivityCategory, AttendanceRecord, DailyActivity, AttendanceCorrection, Holiday, LeaveRecord, OfficialDuty, RecurringLeaveSchedule
 
@@ -54,14 +54,41 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
+class CampusAreaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CampusArea
+        fields = ["id", "campus", "name", "boundary", "is_active"]
+
+    def validate_boundary(self, boundary):
+        if not isinstance(boundary, list) or len(boundary) < 3:
+            raise serializers.ValidationError("Draw at least 3 points to form the campus area boundary.")
+        for point in boundary:
+            if not (isinstance(point, (list, tuple)) and len(point) == 2 and
+                    isinstance(point[0], (int, float)) and isinstance(point[1], (int, float)) and
+                    -90 <= point[0] <= 90 and -180 <= point[1] <= 180):
+                raise serializers.ValidationError("Each point must be a valid [latitude, longitude] pair.")
+        return boundary
+
+    def validate(self, attrs):
+        boundary = attrs.get("boundary", getattr(self.instance, "boundary", None))
+        if self.instance and "boundary" in attrs:
+            invalid = [building.name for building in self.instance.geofences.filter(kind=Geofence.Kind.POLYGON)
+                       if building.polygon and not polygon_within_polygon(building.polygon, boundary)]
+            if invalid:
+                raise serializers.ValidationError({"boundary": f"The boundary would exclude existing building(s): {', '.join(invalid)}."})
+        return attrs
+
+
 class GeofenceSerializer(serializers.ModelSerializer):
     department_ids = serializers.PrimaryKeyRelatedField(source="departments", many=True,
                                                         queryset=Department.objects.all(), required=False)
     departments = serializers.StringRelatedField(many=True, read_only=True)
+    campus_area = serializers.PrimaryKeyRelatedField(queryset=CampusArea.objects.all(), required=False, allow_null=True)
+    campus_area_name = serializers.CharField(source="campus_area.name", read_only=True)
 
     class Meta:
         model = Geofence
-        fields = ["id", "campus", "name", "department_ids", "departments", "kind", "radius_m", "polygon", "is_active"]
+        fields = ["id", "campus", "campus_area", "campus_area_name", "name", "department_ids", "departments", "kind", "radius_m", "polygon", "is_active"]
 
     def validate(self, d):
         # Partial updates (the "edit an existing boundary" PATCH from GeofenceEditor) don't
@@ -86,6 +113,7 @@ class GeofenceSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError({"polygon": f"Point {i} is outside valid Earth coordinates."})
 
         campus = d.get("campus") or getattr(self.instance, "campus", None)
+        campus_area = d.get("campus_area", getattr(self.instance, "campus_area", None))
         departments = d.get("departments")
         if departments is None and self.instance:
             departments = self.instance.departments.all()
@@ -95,24 +123,26 @@ class GeofenceSerializer(serializers.ModelSerializer):
             invalid = [department.name for department in departments if not department.campuses.filter(pk=campus.pk).exists()]
             if invalid:
                 raise serializers.ValidationError({"department_ids": f"These departments are not assigned to {campus.name}: {', '.join(invalid)}."})
-        if kind == "polygon" and polygon and campus:
-            if not campus.boundary:
-                raise serializers.ValidationError({"campus": "Draw and save the campus boundary before adding a building."})
-            if not polygon_within_polygon(polygon, campus.boundary):
-                raise serializers.ValidationError({"polygon": "The whole building boundary must be inside the campus boundary."})
+        if campus_area and campus and campus_area.campus_id != campus.id:
+            raise serializers.ValidationError({"campus_area": "The selected campus area does not belong to this campus."})
+        if kind == "polygon" and not campus_area:
+            raise serializers.ValidationError({"campus_area": "Select a campus area before adding a building."})
+        if kind == "polygon" and polygon and campus_area and not polygon_within_polygon(polygon, campus_area.boundary):
+            raise serializers.ValidationError({"polygon": f"The whole building boundary must be inside the {campus_area.name} campus area."})
 
         return d
 
 
 class CampusSerializer(serializers.ModelSerializer):
     geofences = GeofenceSerializer(many=True, read_only=True)
+    areas = CampusAreaSerializer(many=True, read_only=True)
     department_ids = serializers.PrimaryKeyRelatedField(source="departments", many=True,
                                                         queryset=Department.objects.all(), required=False)
     departments = serializers.StringRelatedField(many=True, read_only=True)
 
     class Meta:
         model = Campus
-        fields = ["id", "name", "latitude", "longitude", "boundary", "is_active", "department_ids", "departments", "geofences"]
+        fields = ["id", "name", "latitude", "longitude", "boundary", "is_active", "department_ids", "departments", "areas", "geofences"]
 
     def validate_boundary(self, boundary):
         if boundary is None:
