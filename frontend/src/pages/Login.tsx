@@ -15,8 +15,13 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   const [mfaCode, setMfaCode] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [credentialsTouched, setCredentialsTouched] = useState(false);
   const ippisRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const credentialsPresent = Boolean(
+    (ippis || ippisRef.current?.value) &&
+    (password || passwordRef.current?.value),
+  );
 
   // Password managers can fill native inputs after React has mounted, without
   // firing React's onChange event. Read the DOM values so a visibly filled form
@@ -41,9 +46,20 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   }, []);
 
   const submit = async () => {
+    // Some mobile browsers intentionally keep autofilled credentials outside
+    // React's event flow until the user touches a field. Read the native input
+    // values at submit time so saved credentials work without that extra tap.
+    const submittedIppis = ippisRef.current?.value || ippis;
+    const submittedPassword = passwordRef.current?.value || password;
+    if (!submittedIppis || !submittedPassword) {
+      setErr("Enter your IPPIS number and password to sign in.");
+      return;
+    }
+    setIppis(submittedIppis);
+    setPassword(submittedPassword);
     setBusy(true); setErr("");
     try {
-      const { data } = await api.post("/auth/login/", { ippis_number: ippis, password, device_token: deviceToken() });
+      const { data } = await api.post("/auth/login/", { ippis_number: submittedIppis, password: submittedPassword, device_token: deviceToken() });
       if (data.mfa_required) { setMfaRequired(true); return; }
       // The login response is the authoritative identity for this new server session.
       // Do not invalidate `me` here: an in-flight response from the previous user can
@@ -80,7 +96,7 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
         <h1>National Space Research and Development Agency</h1>
         <p>Staff Attendance System</p>
       </div>
-      <div className="card">
+      <div className={`card login-card ${credentialsTouched ? "credentials-touched" : ""}`}>
         {mfaRequired ? <>
           <h2>Verify sign-in</h2><p className="muted">Open your authenticator app and enter the current six-digit code.</p>
           <label>Authenticator code</label><input value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" onKeyDown={(e) => e.key === "Enter" && verifyMfa()} />
@@ -95,13 +111,15 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
           <button className="btn" disabled={busy} onClick={() => { setResetMode(false); setErr(""); }}>Back to sign in</button>
         </> : <>
         <label>IPPIS Number</label>
-        <input ref={ippisRef} name="username" value={ippis} onChange={(e) => setIppis(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials}
+        <input ref={ippisRef} className="login-credential" name="username" value={ippis} onChange={(e) => { setCredentialsTouched(true); setIppis(e.target.value); }} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials}
+               required
                inputMode="numeric" autoComplete="username" autoCapitalize="off" spellCheck={false} />
 
         <label>Password</label>
         <div className="password-field">
-          <input ref={passwordRef} name="password" type={showPassword ? "text" : "password"} value={password}
-                 onChange={(e) => setPassword(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials} autoComplete="current-password"
+          <input ref={passwordRef} className="login-credential" name="password" type={showPassword ? "text" : "password"} value={password}
+                 onChange={(e) => { setCredentialsTouched(true); setPassword(e.target.value); }} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials} autoComplete="current-password"
+                 required
                  onKeyDown={(e) => e.key === "Enter" && submit()} />
           <button type="button" className="eye-btn" tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}
@@ -122,7 +140,7 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
         </div>
 
         {err && <div className="alert error">{err}</div>}
-        <button className="btn primary" disabled={busy || !ippis || !password} onClick={submit}>
+        <button className="btn primary login-submit" disabled={busy || (credentialsTouched && !credentialsPresent)} onClick={submit}>
           {busy ? (<><span className="spinner" aria-hidden="true" /> Signing in…</>) : "Sign in"}
         </button>
         <button className="link login-reset-link" type="button" onClick={() => { setResetMode(true); setErr(""); }}>Forgot password?</button>

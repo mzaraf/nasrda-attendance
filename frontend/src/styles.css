@@ -69,6 +69,7 @@ input:-webkit-autofill { -webkit-text-fill-color: var(--text) !important;
 
 .password-field { position: relative; }
 .password-field input { padding-right: 44px; }
+.login-card.credentials-touched:has(.login-credential:invalid) .login-submit:not(:disabled) { background: #c8d1dc; border-color: #c8d1dc; color: #fff; cursor: not-allowed; }
 .eye-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
   width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none;
   color: var(--muted); border-radius: 8px; }
