@@ -19,19 +19,25 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
   const passwordRef = useRef<HTMLInputElement>(null);
 
   // Password managers can fill native inputs after React has mounted, without
-  // firing React's onChange event. Read the DOM values briefly after mount so
-  // a visibly filled form also enables its Sign in button.
+  // firing React's onChange event. Read the DOM values so a visibly filled form
+  // also enables its Sign in button.
   const syncSavedCredentials = () => {
     const savedIppis = ippisRef.current?.value ?? "";
     const savedPassword = passwordRef.current?.value ?? "";
-    if (savedIppis) setIppis((current) => current || savedIppis);
-    if (savedPassword) setPassword((current) => current || savedPassword);
+    if (savedIppis) setIppis((current) => current === savedIppis ? current : savedIppis);
+    if (savedPassword) setPassword((current) => current === savedPassword ? current : savedPassword);
+    return Boolean(savedIppis && savedPassword);
   };
   useEffect(() => {
     syncSavedCredentials();
-    const timer = window.setInterval(syncSavedCredentials, 200);
-    const stopTimer = window.setTimeout(() => window.clearInterval(timer), 3000);
-    return () => { window.clearInterval(timer); window.clearTimeout(stopTimer); };
+    // Some browsers restore credentials after the page becomes visible, rather
+    // than during the first render. Poll only until both values are present and
+    // also listen for the browser's restore/autofill lifecycle events.
+    const timer = window.setInterval(() => { if (syncSavedCredentials()) window.clearInterval(timer); }, 150);
+    const resync = () => window.setTimeout(syncSavedCredentials, 0);
+    window.addEventListener("pageshow", resync);
+    document.addEventListener("visibilitychange", resync);
+    return () => { window.clearInterval(timer); window.removeEventListener("pageshow", resync); document.removeEventListener("visibilitychange", resync); };
   }, []);
 
   const submit = async () => {
@@ -89,13 +95,13 @@ export default function Login({ onAuthenticated }: { onAuthenticated?: () => voi
           <button className="btn" disabled={busy} onClick={() => { setResetMode(false); setErr(""); }}>Back to sign in</button>
         </> : <>
         <label>IPPIS Number</label>
-        <input ref={ippisRef} name="username" value={ippis} onChange={(e) => setIppis(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials}
+        <input ref={ippisRef} name="username" value={ippis} onChange={(e) => setIppis(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials}
                inputMode="numeric" autoComplete="username" autoCapitalize="off" spellCheck={false} />
 
         <label>Password</label>
         <div className="password-field">
           <input ref={passwordRef} name="password" type={showPassword ? "text" : "password"} value={password}
-                 onChange={(e) => setPassword(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} autoComplete="current-password"
+                 onChange={(e) => setPassword(e.target.value)} onInput={syncSavedCredentials} onFocus={syncSavedCredentials} onAnimationStart={syncSavedCredentials} autoComplete="current-password"
                  onKeyDown={(e) => e.key === "Enter" && submit()} />
           <button type="button" className="eye-btn" tabIndex={-1}
                   aria-label={showPassword ? "Hide password" : "Show password"}

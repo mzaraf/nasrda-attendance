@@ -64,6 +64,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--navy-light)
 /* Chrome/Safari autofill can paint its own (sometimes near-white) text colour — force ours back. */
 input:-webkit-autofill { -webkit-text-fill-color: var(--text) !important;
   box-shadow: 0 0 0 1000px #fff inset !important; caret-color: var(--text) !important; }
+@keyframes login-autofill-detected { from { opacity: .99; } to { opacity: 1; } }
+.login input:-webkit-autofill { animation: login-autofill-detected .01s; }
 
 .password-field { position: relative; }
 .password-field input { padding-right: 44px; }
