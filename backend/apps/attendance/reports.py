@@ -47,7 +47,7 @@ def daily_attendance_rows(report_date, department=None, campus=None, campus_name
             queryset=AttendanceLocation.objects.filter(event="in").select_related("geofence__campus_area"),
             to_attr="report_checkin_locations",
         ))
-    rows = [["IPPIS", "Name", "Department", "Campus", "Check-in", "Check-out", "Status", "Activities"]]
+    rows = [["IPPIS", "Name", "Department", "Campus", "Building", "Check-in", "Check-out", "Status", "Activities"]]
     for r in qs:
         checkin_location = next(
             (location for location in r.report_checkin_locations
@@ -58,8 +58,11 @@ def daily_attendance_rows(report_date, department=None, campus=None, campus_name
             checkin_location.geofence.campus_area.name
             if checkin_location else r.campus.name
         )
+        captured_building = (
+            checkin_location.geofence.name if checkin_location else "—"
+        )
         rows.append([r.user.ippis_number, r.user.get_full_name(),
-                    r.user.department.name if r.user.department_id else "", captured_area,
+                    r.user.department.name if r.user.department_id else "", captured_area, captured_building,
                     timezone.localtime(r.check_in_at).strftime("%H:%M"),
                     timezone.localtime(r.check_out_at).strftime("%H:%M") if r.check_out_at else "—",
                     r.check_in_status, r.activities.count()])
