@@ -40,7 +40,7 @@ ACTION_LABELS = {
     "staff.deactivated": "Deactivated staff member", "staff.activated": "Activated staff member",
     "staff.password_reset": "Reset staff password", "staff.devices_reset": "Revoked staff devices",
     "staff.bulk_import": "Bulk imported staff", "role.created": "Created role", "role.updated": "Updated role",
-    "role.deleted": "Deleted role", "campus.updated": "Updated campus", "geofence.created": "Created geofence",
+    "role.deleted": "Deleted role", "campus.updated": "Updated campus", "campus.deleted": "Deleted campus", "geofence.created": "Created geofence",
     "geofence.updated": "Updated geofence", "device.registered": "Registered device",
     "device.removal_requested": "Requested device removal", "activity.created": "Recorded activity",
     "activity.attachment_added": "Added activity attachment", "attendance.check_in": "Checked in",

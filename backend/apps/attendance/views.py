@@ -549,6 +549,34 @@ class CampusViewSet(viewsets.ModelViewSet):
         obj = s.save()
         log(self.request, self.request.user, "campus.updated", obj.name, previous=old, new=s.data)
 
+    def perform_destroy(self, instance):
+        expected_confirmation = f"DELETE {instance.name}"
+        if self.request.data.get("confirmation") != expected_confirmation:
+            raise DomainError(
+                "CONFIRM_CAMPUS_DELETION",
+                f'Type "{expected_confirmation}" exactly to delete this campus.',
+            )
+        # Deletion is intentionally limited to unused campuses. This prevents
+        # accidental loss of geofencing configuration or historical attendance.
+        if instance.areas.exists() or instance.geofences.exists():
+            raise DomainError(
+                "CAMPUS_HAS_GEOFENCING",
+                "Remove this campus's areas and buildings before deleting the campus.",
+            )
+        if instance.primary_staff.exists() or instance.secondary_staff.exists():
+            raise DomainError(
+                "CAMPUS_ASSIGNED_TO_STAFF",
+                "Remove this campus from assigned staff profiles before deleting it.",
+            )
+        if AttendanceRecord.objects.filter(campus=instance).exists():
+            raise DomainError(
+                "CAMPUS_HAS_ATTENDANCE",
+                "A campus with attendance records cannot be deleted. Disable it instead to preserve its history.",
+            )
+        name = instance.name
+        instance.delete()
+        log(self.request, self.request.user, "campus.deleted", name)
+
 
 class CampusAreaViewSet(viewsets.ModelViewSet):
     queryset = CampusArea.objects.select_related("campus").prefetch_related("geofences")

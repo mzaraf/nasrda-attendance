@@ -280,7 +280,10 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
   /* Geofence editor becomes a fixed-height, no-scroll working screen: toolbar + map share
      the viewport instead of stacking, so drawing a boundary never needs the page to scroll. */
   .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 14px 24px; gap: 7px; overflow: hidden; }
-  .gf-toolbar { flex: 0 0 auto; margin-bottom: 0; }
+  .gf-toolbar { flex: 0 0 auto; flex-wrap: nowrap; gap: 7px; margin-bottom: 0; }
+  .gf-toolbar > div:first-child { flex: 0 1 240px; width: 240px; min-width: 180px; }
+  .gf-toolbar select, .gf-toolbar .btn { height: 44px; min-height: 44px; }
+  .gf-toolbar .btn { flex: 1 1 0; min-width: 0; padding: 8px 10px; font-size: 14px; }
   /* Keep the area and building panels visible above the map. Only the editing
      actions float on the map, preserving the clear two-panel layout. */
   .gf-controls { position: relative; z-index: 1000; grid-template-columns: minmax(250px, .75fr) minmax(380px, 1.25fr); align-items: start; flex: 0 0 auto; min-height: 0; }

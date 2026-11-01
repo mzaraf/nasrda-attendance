@@ -190,6 +190,35 @@ export default function GeofenceEditor() {
     setDepartmentPickerOpen(false);
     setMsg(null);
   };
+  const removeCampus = async () => {
+    if (!campus) return;
+    const confirmation = prompt(
+      `To delete ${campus.name}, type DELETE ${campus.name} exactly.\n\nRemove all campus areas and buildings first. A campus assigned to staff or with attendance records cannot be deleted.`,
+    );
+    if (confirmation !== `DELETE ${campus.name}`) {
+      if (confirmation !== null)
+        setMsg({
+          ok: false,
+          text: `Campus was not deleted. Type DELETE ${campus.name} exactly to confirm.`,
+        });
+      return;
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      await api.delete(`/admin/campuses/${campus.id}/`, {
+        data: { confirmation },
+      });
+      setCampusId("");
+      reset();
+      await qc.invalidateQueries({ queryKey: ["campuses"] });
+      setMsg({ ok: true, text: "Campus deleted." });
+    } catch (error) {
+      setMsg({ ok: false, text: errorOf(error).message });
+    } finally {
+      setSaving(false);
+    }
+  };
   const saveArea = async () => {
     if (!campus || !name.trim() || points.length < 3) return;
     setSaving(true);
@@ -340,16 +369,20 @@ export default function GeofenceEditor() {
         <button
           className={`btn ${newCampusOpen ? "primary gf-add-active" : ""}`}
           onClick={() => setNewCampusOpen(true)}
+          title="New campus"
         >
-          + New campus
+          + Campus
         </button>
         {campus && (
           <>
-            <button className="btn" onClick={newArea}>
-              + Add campus area
+            <button className="btn" onClick={newArea} title="Add campus area">
+              + Area
             </button>
-            <button className="btn" onClick={newBuilding}>
-              + Add building
+            <button className="btn" onClick={newBuilding} title="Add building">
+              + Building
+            </button>
+            <button className="btn danger" disabled={saving} onClick={removeCampus} title="Remove campus">
+              Remove
             </button>
           </>
         )}
