@@ -70,6 +70,16 @@ function FocusBuilding({ building }: { building: Geofence | undefined }) {
   return null;
 }
 
+function FocusCampusArea({ area }: { area: CampusArea | undefined }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!area?.boundary || area.boundary.length < 3) return;
+    const bounds = L.latLngBounds(area.boundary);
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [48, 48], maxZoom: 17 });
+  }, [area?.id]);
+  return null;
+}
+
 export default function GeofenceEditor() {
   const qc = useQueryClient();
   const { data: campuses = [] } = useQuery({
@@ -610,6 +620,7 @@ export default function GeofenceEditor() {
               <TileLayer url={TILES} attribution="© OpenStreetMap" />
               <Recentre centre={centre} paused={mode !== "idle" || !!selectedBuilding} />
               <FocusBuilding building={selectedBuilding} />
+              <FocusCampusArea area={selectedArea} />
               <Clicker
                 onAdd={(point) => {
                   if (mode !== "idle") setPoints((value) => [...value, point]);
