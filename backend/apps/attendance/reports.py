@@ -47,8 +47,8 @@ def daily_attendance_rows(report_date, department=None, campus=None, campus_name
             queryset=AttendanceLocation.objects.filter(event="in").select_related("geofence__campus_area"),
             to_attr="report_checkin_locations",
         ))
-    rows = [["IPPIS", "Name", "Department", "Campus", "Building", "Check-in", "Check-out", "Status", "Activities"]]
-    for r in qs:
+    rows = [["S/N", "IPPIS", "Name", "Department", "Campus", "Building", "Check-in", "Check-out", "Status", "Activities"]]
+    for serial, r in enumerate(qs, start=1):
         checkin_location = next(
             (location for location in r.report_checkin_locations
              if location.geofence_id and location.geofence.campus_area_id),
@@ -61,7 +61,7 @@ def daily_attendance_rows(report_date, department=None, campus=None, campus_name
         captured_building = (
             checkin_location.geofence.name if checkin_location else "—"
         )
-        rows.append([r.user.ippis_number, r.user.get_full_name(),
+        rows.append([serial, r.user.ippis_number, r.user.get_full_name(),
                     r.user.department.name if r.user.department_id else "", captured_area, captured_building,
                     timezone.localtime(r.check_in_at).strftime("%H:%M"),
                     timezone.localtime(r.check_out_at).strftime("%H:%M") if r.check_out_at else "—",
@@ -95,15 +95,15 @@ def monthly_summary_rows(year, month, department=None, campus=None, campus_name=
     leave_by_date = {day: absence.on_approved_leave(day) for day in working_dates}
     duty_by_date = {day: absence.on_official_duty(day) for day in working_dates}
     recurring_leave_by_date = {day: absence.on_recurring_leave(day) for day in working_dates}
-    rows = [["IPPIS", "Name", "Department", "Days present", "Days absent", "Attendance percentage"]]
-    for b in by_user.values():
+    rows = [["S/N", "IPPIS", "Name", "Department", "Days present", "Days absent", "Attendance percentage"]]
+    for serial, b in enumerate(by_user.values(), start=1):
         u = b["user"]
         present = len(b["present_dates"] & set(working_dates))
         excused = sum(u.id in (leave_by_date[day] | duty_by_date[day] | recurring_leave_by_date[day]) and day not in b["present_dates"] for day in working_dates)
         eligible_days = max(len(working_dates) - excused, 0)
         absent = max(eligible_days - present, 0)
         percentage = f"{(present / eligible_days * 100):.1f}%" if eligible_days else "—"
-        rows.append([u.ippis_number, u.get_full_name(), u.department.name if u.department_id else "",
+        rows.append([serial, u.ippis_number, u.get_full_name(), u.department.name if u.department_id else "",
                     present, absent, percentage])
     period = calendar_date(year, month, 1).strftime("%B %Y")
     return rows, f"Monthly Attendance Summary — {period} — {_scope_heading(campus_name, department_name)}"
