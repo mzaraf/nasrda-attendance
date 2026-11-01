@@ -5,6 +5,7 @@ from datetime import date as calendar_date, timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.db.models import Prefetch
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as ExcelImage
@@ -16,7 +17,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from . import absence
-from .models import AttendanceRecord
+from .models import AttendanceLocation, AttendanceRecord
 
 User = get_user_model()
 AGENCY_NAME = "National Space Research and Development Agency"
@@ -40,11 +41,25 @@ def _scope_heading(campus_name=None, department_name=None):
 
 def daily_attendance_rows(report_date, department=None, campus=None, campus_name=None, department_name=None):
     qs = _apply_filters(AttendanceRecord.objects.filter(date=report_date), department, campus) \
-        .select_related("user", "user__department", "campus")
+        .select_related("user", "user__department", "campus") \
+        .prefetch_related(Prefetch(
+            "locations",
+            queryset=AttendanceLocation.objects.filter(event="in").select_related("geofence__campus_area"),
+            to_attr="report_checkin_locations",
+        ))
     rows = [["IPPIS", "Name", "Department", "Campus", "Check-in", "Check-out", "Status", "Activities"]]
     for r in qs:
+        checkin_location = next(
+            (location for location in r.report_checkin_locations
+             if location.geofence_id and location.geofence.campus_area_id),
+            None,
+        )
+        captured_area = (
+            checkin_location.geofence.campus_area.name
+            if checkin_location else r.campus.name
+        )
         rows.append([r.user.ippis_number, r.user.get_full_name(),
-                    r.user.department.name if r.user.department_id else "", r.campus.name,
+                    r.user.department.name if r.user.department_id else "", captured_area,
                     timezone.localtime(r.check_in_at).strftime("%H:%M"),
                     timezone.localtime(r.check_out_at).strftime("%H:%M") if r.check_out_at else "—",
                     r.check_in_status, r.activities.count()])
