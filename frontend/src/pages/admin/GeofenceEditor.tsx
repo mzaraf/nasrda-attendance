@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MapContainer,
+  LayersControl,
   TileLayer,
   Polygon,
   Marker,
@@ -650,7 +651,23 @@ export default function GeofenceEditor() {
               zoom={15}
               style={{ height: "100%", width: "100%" }}
             >
-              <TileLayer url={TILES} attribution="© OpenStreetMap" />
+              <LayersControl position="topright">
+                <LayersControl.BaseLayer name="Street map">
+                  <TileLayer url={TILES} attribution="© OpenStreetMap" />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer checked name="Satellite">
+                  <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution="Tiles © Esri"
+                  />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer name="Terrain">
+                  <TileLayer
+                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+                    attribution="Map data © OpenStreetMap contributors, SRTM | Map style © OpenTopoMap"
+                  />
+                </LayersControl.BaseLayer>
+              </LayersControl>
               <Recentre centre={centre} paused={mode !== "idle" || !!selectedBuilding} />
               <FocusBuilding building={selectedBuilding} />
               <FocusCampusArea area={selectedArea} />
