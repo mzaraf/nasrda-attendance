@@ -7,6 +7,9 @@ DEFAULTS = {
     "work_end": "16:00",
     "checkout_allowed_after": "16:30",
     "nursing_mother_checkout_after": "14:00",
+    # Staff cannot check out after this time. Still-open records are marked as
+    # early closures when the calendar changes to the next day.
+    "checkout_closes_after": "23:59",
     "grace_minutes": 10,
     "overtime_after_minutes": 30,    # minutes beyond work_end before overtime counts
     "min_accuracy_m": 100,           # reject GPS fixes worse than this

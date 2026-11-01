@@ -368,6 +368,7 @@ class Today(APIView):
         state = "not_checked_in" if not rec else ("checked_out" if rec.check_out_at else "checked_in")
         return Response({"state": state, "server_time": now,
                          "checkout_allowed_after": rules.checkout_time_for(request.user),
+                         "checkout_closes_after": get_setting("checkout_closes_after"),
                          "checkin_late_after": get_setting("checkin_late_after"),
                          "checkin_closes_after": get_setting("checkin_closes_after"),
                          "checkin_open": rules.checkin_is_open(timezone.localtime(now)),
@@ -1086,17 +1087,24 @@ class ReportExport(APIView):
             department = str(request.user.department_id)
             campus = str(request.user.primary_campus_id)
 
+        # Resolve the friendly scope once so every export format has a clear,
+        # auditable heading rather than internal IDs or ambiguous filters.
+        campus_name = Campus.objects.filter(pk=campus).values_list("name", flat=True).first() if campus else None
+        department_name = Department.objects.filter(pk=department).values_list("name", flat=True).first() if department else None
+
         if report == "monthly":
             month = request.query_params.get("month", timezone.localdate().strftime("%Y-%m"))
             y, m = month.split("-")
-            rows, title = rpt.monthly_summary_rows(int(y), int(m), department, campus)
+            rows, title = rpt.monthly_summary_rows(
+                int(y), int(m), department, campus, campus_name, department_name,
+            )
             filename_period = datetime.strptime(month, "%Y-%m").strftime("%b-%Y")
         else:
             date = request.query_params.get("date", str(timezone.localdate()))
             builder = rpt.REPORT_BUILDERS.get(report)
             if not builder:
                 raise DomainError("UNKNOWN_REPORT", "Unknown report type.")
-            rows, title = builder(date, department, campus)
+            rows, title = builder(date, department, campus, campus_name, department_name)
             filename_period = datetime.strptime(date, "%Y-%m-%d").strftime("%d-%b-%Y")
 
         body = {"csv": rpt.to_csv, "xlsx": lambda r: rpt.to_xlsx(r, title),
@@ -1107,8 +1115,6 @@ class ReportExport(APIView):
             import re
             return re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-")
         report_name = {"monthly": "monthly-attendance-summary", "daily": "daily-attendance"}.get(report, report)
-        campus_name = Campus.objects.filter(pk=campus).values_list("name", flat=True).first() if campus else "All-Campuses"
-        department_name = Department.objects.filter(pk=department).values_list("name", flat=True).first() if department else "All-Departments"
         filename = f"{report_name}-{filename_part(campus_name or 'All-Campuses')}-{filename_part(department_name or 'All-Departments')}-{filename_period}.{fmt}"
         resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp

@@ -1,7 +1,7 @@
 import csv
 import io
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date as calendar_date, timedelta
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -31,8 +31,15 @@ def _apply_filters(qs, department=None, campus=None):
     return qs
 
 
-def daily_attendance_rows(date, department=None, campus=None):
-    qs = _apply_filters(AttendanceRecord.objects.filter(date=date), department, campus) \
+def _scope_heading(campus_name=None, department_name=None):
+    """Human-readable report scope, including deliberately unfiltered choices."""
+    campus = campus_name or "All campuses"
+    department = f"Department: {department_name}" if department_name else "All departments"
+    return f"{campus} — {department}"
+
+
+def daily_attendance_rows(report_date, department=None, campus=None, campus_name=None, department_name=None):
+    qs = _apply_filters(AttendanceRecord.objects.filter(date=report_date), department, campus) \
         .select_related("user", "user__department", "campus")
     rows = [["IPPIS", "Name", "Department", "Campus", "Check-in", "Check-out", "Status", "Activities"]]
     for r in qs:
@@ -41,10 +48,11 @@ def daily_attendance_rows(date, department=None, campus=None):
                     timezone.localtime(r.check_in_at).strftime("%H:%M"),
                     timezone.localtime(r.check_out_at).strftime("%H:%M") if r.check_out_at else "—",
                     r.check_in_status, r.activities.count()])
-    return rows, f"Daily Attendance Report — {date}"
+    heading_date = calendar_date.fromisoformat(str(report_date)).strftime("%d %B %Y")
+    return rows, f"Daily Attendance Report — {heading_date} — {_scope_heading(campus_name, department_name)}"
 
 
-def monthly_summary_rows(year, month, department=None, campus=None):
+def monthly_summary_rows(year, month, department=None, campus=None, campus_name=None, department_name=None):
     # Monthly attendance includes everyone in the selected scope, including staff who
     # never checked in. Otherwise their absence would be invisible in the report.
     staff = User.objects.filter(is_active=True).select_related("department")
@@ -54,7 +62,7 @@ def monthly_summary_rows(year, month, department=None, campus=None):
         staff = staff.filter(primary_campus_id=campus)
     staff_by_id = {user.id: user for user in staff}
 
-    first_day = date(year, month, 1)
+    first_day = calendar_date(year, month, 1)
     working_dates = []
     for offset in range(monthrange(year, month)[1]):
         current = first_day + timedelta(days=offset)
@@ -79,7 +87,8 @@ def monthly_summary_rows(year, month, department=None, campus=None):
         percentage = f"{(present / eligible_days * 100):.1f}%" if eligible_days else "—"
         rows.append([u.ippis_number, u.get_full_name(), u.department.name if u.department_id else "",
                     present, absent, percentage])
-    return rows, f"Monthly Attendance Summary — {year}-{month:02d}"
+    period = calendar_date(year, month, 1).strftime("%B %Y")
+    return rows, f"Monthly Attendance Summary — {period} — {_scope_heading(campus_name, department_name)}"
 
 
 REPORT_BUILDERS = {"daily": daily_attendance_rows}

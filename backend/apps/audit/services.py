@@ -6,6 +6,7 @@ SETTING_LABELS = {
     "work_end": "work end time",
     "checkout_allowed_after": "normal check-out available from",
     "nursing_mother_checkout_after": "nursing mother check-out available from",
+    "checkout_closes_after": "check-out closing time",
     "grace_minutes": "late grace period (minutes)",
     "overtime_after_minutes": "overtime threshold (minutes)",
     "min_accuracy_m": "required GPS accuracy (metres)",

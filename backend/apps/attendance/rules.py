@@ -35,4 +35,8 @@ def classify_check_out(local_dt, user):
 
 
 def checkout_is_open(local_dt, user):
-    return local_dt.time() >= _t(checkout_time_for(user))
+    return _t(checkout_time_for(user)) <= local_dt.time() < _t(get_setting("checkout_closes_after"))
+
+
+def checkout_is_closed(local_dt):
+    return local_dt.time() >= _t(get_setting("checkout_closes_after"))

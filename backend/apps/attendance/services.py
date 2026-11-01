@@ -13,20 +13,28 @@ from .models import AttendanceLocation, AttendanceRecord, FaceProfile, FaceVerif
 
 
 def finalize_expired_open_records(now=None):
-    """Close records left open beyond 11:59 PM as early closures.
+    """Mark records left open after midnight as early closures.
 
     This runs whenever attendance data is read or written, so it does not depend on a
     browser remaining open overnight. A scheduled job can call it too if configured.
     """
     now = now or timezone.now()
     local_now = timezone.localtime(now)
-    expired = AttendanceRecord.objects.filter(date__lt=local_now.date(), check_out_at__isnull=True)
+    expired = AttendanceRecord.objects.filter(
+        date__lt=local_now.date(), check_out_at__isnull=True,
+    )
     for record in expired.iterator():
-        closing_local = datetime.combine(record.date, time(23, 59, 59), tzinfo=local_now.tzinfo)
+        # The record is closed just before midnight on the day it belongs to,
+        # even if it is processed shortly after midnight.
+        closing_local = timezone.make_aware(
+            datetime.combine(record.date, time(23, 59, 59)), local_now.tzinfo
+        )
         record.check_out_at = closing_local
         record.check_out_status = AttendanceRecord.OutStatus.EARLY_CLOSURE
         record.overtime_minutes = 0
-        record.remarks = (record.remarks + "\n" if record.remarks else "") + "Automatically closed at 11:59 PM because no check-out was recorded."
+        record.remarks = (record.remarks + "\n" if record.remarks else "") + (
+            "Automatically closed at 11:59 PM because no check-out was recorded before midnight."
+        )
         record.save(update_fields=["check_out_at", "check_out_status", "overtime_minutes", "remarks"])
 
 
@@ -131,6 +139,9 @@ def check_out(request, user, data):
     finalize_expired_open_records(now)
     local = timezone.localtime(now)
     checkout_after = rules.checkout_time_for(user)
+    if rules.checkout_is_closed(local):
+        raise DomainError("CHECKOUT_CLOSED",
+                          f"Check-out closed at {get_setting('checkout_closes_after')}.", 403)
     if not rules.checkout_is_open(local, user):
         raise DomainError("CHECKOUT_NOT_OPEN",
                           f"Check-out opens at {checkout_after}.", 403)

@@ -1,14 +1,10 @@
 from django.core.management.base import BaseCommand
-from django.utils import timezone
-
-from apps.attendance.models import AttendanceRecord
+from apps.attendance.services import finalize_expired_open_records
 
 
 class Command(BaseCommand):
-    help = "Marks today's still-open attendance records as missed check-out. Run once late at night."
+    help = "Marks open attendance records from previous days as early closures."
 
     def handle(self, *a, **kw):
-        today = timezone.localdate()
-        n = AttendanceRecord.objects.filter(date=today, check_out_at__isnull=True) \
-                                     .update(check_out_status="missed_checkout")
-        self.stdout.write(f"Marked {n} missed checkouts for {today}.")
+        finalize_expired_open_records()
+        self.stdout.write("Processed open attendance records from previous days.")

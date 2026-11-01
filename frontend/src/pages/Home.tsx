@@ -56,12 +56,14 @@ export default function Home() {
   const needsFace = me?.require_face_verification && !me?.face_enrolled;
   const needsDevice = me?.require_approved_device && !me?.has_current_approved_device;
   const checkoutAfter = data?.checkout_allowed_after ?? "16:30";
+  const checkoutClosesAfter = data?.checkout_closes_after ?? "23:59";
   const checkinClosesAfter = data?.checkin_closes_after ?? "12:00";
   const checkinOpen = data?.checkin_open ?? true;
   const nonWorkingReason: string | null = data?.non_working_reason ?? null;
   const serverTime = data?.server_time ? new Date(data.server_time) : null;
   const serverClock = serverTime ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Africa/Lagos" }).format(serverTime) : "";
-  const checkoutOpen = !!serverClock && serverClock >= checkoutAfter;
+  const checkoutOpen = !!serverClock && serverClock >= checkoutAfter && serverClock < checkoutClosesAfter;
+  const checkoutClosed = !!serverClock && serverClock >= checkoutClosesAfter;
 
   return (
     <div className="page">
@@ -104,7 +106,7 @@ export default function Home() {
                 {busy || "CHECK OUT"}
               </button>
             )}
-            {state === "checked_in" && !checkoutOpen && <small>Check-out opens at {checkoutAfter} (Africa/Lagos time).</small>}
+            {state === "checked_in" && !checkoutOpen && <small>{checkoutClosed ? `Check-out closed at ${checkoutClosesAfter}. Your open record will be marked as an early closure after midnight.` : `Check-out opens at ${checkoutAfter} (Africa/Lagos time).`}</small>}
             {state === "checked_out" && <div className="done">Attendance complete for today 🎉</div>}
           </div>
         </div>

@@ -10,7 +10,7 @@ from apps.core.errors import DomainError
 from .models import DEFAULTS, SystemSetting, get_setting
 
 
-TIME_KEYS = {"work_start", "work_end", "checkin_late_after", "checkin_closes_after", "checkout_allowed_after", "nursing_mother_checkout_after"}
+TIME_KEYS = {"work_start", "work_end", "checkin_late_after", "checkin_closes_after", "checkout_allowed_after", "nursing_mother_checkout_after", "checkout_closes_after"}
 INTEGER_KEYS = {"grace_minutes", "overtime_after_minutes", "min_accuracy_m", "max_speed_mps", "max_devices"}
 BOOLEAN_KEYS = {"require_face_verification", "require_approved_device"}
 
@@ -49,6 +49,8 @@ class SystemSettingsView(APIView):
         effective = {key: cleaned.get(key, get_setting(key)) for key in DEFAULTS}
         if effective["checkin_late_after"] >= effective["checkin_closes_after"]:
             raise DomainError("INVALID_SETTINGS", "Late check-in must start before check-in closes.")
+        if effective["checkout_closes_after"] <= effective["checkout_allowed_after"]:
+            raise DomainError("INVALID_SETTINGS", "Check-out closing time must be after check-out becomes available.")
 
         old = {key: get_setting(key) for key in cleaned}
         changed = {key: value for key, value in cleaned.items() if old[key] != value}
