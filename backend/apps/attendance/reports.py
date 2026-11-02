@@ -88,14 +88,19 @@ def monthly_summary_rows(year, month, department=None, campus=None, campus_name=
             working_dates.append(current)
 
     qs = AttendanceRecord.objects.filter(user_id__in=staff_by_id, date__year=year, date__month=month)
-    by_user = {user_id: {"user": user, "present_dates": set()} for user_id, user in staff_by_id.items()}
+    by_user = {
+        user_id: {"user": user, "present_dates": set(), "automatic_early_closures": 0}
+        for user_id, user in staff_by_id.items()
+    }
     for r in qs:
         by_user[r.user_id]["present_dates"].add(r.date)
+        if r.check_out_status == "early_closure":
+            by_user[r.user_id]["automatic_early_closures"] += 1
 
     leave_by_date = {day: absence.on_approved_leave(day) for day in working_dates}
     duty_by_date = {day: absence.on_official_duty(day) for day in working_dates}
     recurring_leave_by_date = {day: absence.on_recurring_leave(day) for day in working_dates}
-    rows = [["S/N", "IPPIS", "Name", "Department", "Days present", "Days absent", "Attendance percentage"]]
+    rows = [["S/N", "IPPIS", "Name", "Department", "Days present", "Days absent", "Early closure", "Attendance percentage"]]
     for serial, b in enumerate(by_user.values(), start=1):
         u = b["user"]
         present = len(b["present_dates"] & set(working_dates))
@@ -104,7 +109,7 @@ def monthly_summary_rows(year, month, department=None, campus=None, campus_name=
         absent = max(eligible_days - present, 0)
         percentage = f"{(present / eligible_days * 100):.1f}%" if eligible_days else "—"
         rows.append([serial, u.ippis_number, u.get_full_name(), u.department.name if u.department_id else "",
-                    present, absent, percentage])
+                    present, absent, b["automatic_early_closures"], percentage])
     period = calendar_date(year, month, 1).strftime("%B %Y")
     return rows, f"Monthly Attendance Summary — {period} — {_scope_heading(campus_name, department_name)}"
 
