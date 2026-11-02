@@ -16,7 +16,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from . import absence
+from . import absence, rules
 from .models import AttendanceLocation, AttendanceRecord
 
 User = get_user_model()
@@ -81,8 +81,15 @@ def monthly_summary_rows(year, month, department=None, campus=None, campus_name=
     staff_by_id = {user.id: user for user in staff}
 
     first_day = calendar_date(year, month, 1)
+    current_day = timezone.localdate()
+    current_month = (year, month) == (current_day.year, current_day.month)
+    future_month = (year, month) > (current_day.year, current_day.month)
+    last_reportable_day = (
+        0 if future_month else min(monthrange(year, month)[1], current_day.day)
+        if current_month else monthrange(year, month)[1]
+    )
     working_dates = []
-    for offset in range(monthrange(year, month)[1]):
+    for offset in range(last_reportable_day):
         current = first_day + timedelta(days=offset)
         if absence.is_working_day(current):
             working_dates.append(current)
@@ -100,12 +107,26 @@ def monthly_summary_rows(year, month, department=None, campus=None, campus_name=
     leave_by_date = {day: absence.on_approved_leave(day) for day in working_dates}
     duty_by_date = {day: absence.on_official_duty(day) for day in working_dates}
     recurring_leave_by_date = {day: absence.on_recurring_leave(day) for day in working_dates}
+    # During the current workday, a person without a check-in is not absent yet:
+    # absence starts only once the configured check-in window has closed.
+    today_pending = (
+        current_month
+        and current_day in working_dates
+        and rules.checkin_is_open(timezone.localtime())
+    )
+    today_excused_ids = (
+        leave_by_date.get(current_day, set())
+        | duty_by_date.get(current_day, set())
+        | recurring_leave_by_date.get(current_day, set())
+    )
     rows = [["S/N", "IPPIS", "Name", "Department", "Days present", "Days absent", "Early closure", "Attendance percentage"]]
     for serial, b in enumerate(by_user.values(), start=1):
         u = b["user"]
         present = len(b["present_dates"] & set(working_dates))
         excused = sum(u.id in (leave_by_date[day] | duty_by_date[day] | recurring_leave_by_date[day]) and day not in b["present_dates"] for day in working_dates)
         eligible_days = max(len(working_dates) - excused, 0)
+        if today_pending and current_day not in b["present_dates"] and u.id not in today_excused_ids:
+            eligible_days = max(eligible_days - 1, 0)
         absent = max(eligible_days - present, 0)
         percentage = f"{(present / eligible_days * 100):.1f}%" if eligible_days else "—"
         rows.append([serial, u.ippis_number, u.get_full_name(), u.department.name if u.department_id else "",
