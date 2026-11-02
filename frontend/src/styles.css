@@ -208,8 +208,10 @@ th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #edf1f5;
 .gf-page { padding: 16px; }
 .gf-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 12px; }
 .gf-toolbar > div:first-child { flex: 1; min-width: 160px; }
-.gf-toolbar label { margin-top: 0; }
+.gf-toolbar label { display: none; }
 .gf-toolbar .btn { width: auto; margin-top: 0; white-space: nowrap; }
+.gf-toolbar select, .gf-toolbar .btn { height: 44px; min-height: 44px; }
+.gf-toolbar select { padding-top: 6px; padding-bottom: 6px; line-height: normal; }
 .gf-spacer { flex: 1; }
 .gf-map { height: 60vh; border-radius: var(--radius); overflow: hidden; }
 .gf-map .leaflet-container { height: 100%; width: 100%; }
@@ -295,8 +297,10 @@ button, .btn, .link, .tabbar a, .tabbar button, .sidebar a, .sidebar button { cu
      the viewport instead of stacking, so drawing a boundary never needs the page to scroll. */
   .gf-page { display: flex; flex-direction: column; height: 100dvh; padding: 14px 24px; gap: 7px; overflow: hidden; }
   .gf-toolbar { flex: 0 0 auto; flex-wrap: nowrap; gap: 7px; margin-bottom: 0; }
-  .gf-toolbar > div:first-child { flex: 0 1 240px; width: 240px; min-width: 180px; }
+  .gf-toolbar > div:first-child { flex: 0 0 270px; width: 270px; min-width: 270px; overflow: visible; }
+  .gf-toolbar > div:first-child select { min-width: 0; }
   .gf-toolbar select, .gf-toolbar .btn { height: 44px; min-height: 44px; }
+  .gf-toolbar select { line-height: normal; }
   .gf-toolbar .btn { flex: 1 1 0; min-width: 0; padding: 8px 10px; font-size: 14px; }
   /* Keep the area and building panels visible above the map. Only the editing
      actions float on the map, preserving the clear two-panel layout. */

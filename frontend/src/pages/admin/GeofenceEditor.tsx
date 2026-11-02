@@ -352,8 +352,8 @@ export default function GeofenceEditor() {
     <div className="gf-page">
       <div className="gf-toolbar">
         <div>
-          <label>Campus</label>
           <select
+            aria-label="Select campus"
             value={campusId}
             onChange={(event) =>
               setCampusId(event.target.value ? Number(event.target.value) : "")
