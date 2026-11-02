@@ -13,11 +13,21 @@ export default function FaceCapture({ mode, action, onComplete, onClose }: Props
   const close = () => { stream.current?.getTracks().forEach((track) => track.stop()); onClose(); };
   useEffect(() => { let mounted = true;
     (async () => { try {
+      if (!window.isSecureContext) {
+        throw new Error("Face verification requires a secure HTTPS connection. Open the official attendance website using https:// and try again.");
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Your current browser cannot access the camera for face verification. Open the attendance website directly in the latest Chrome, Safari, Edge, or Firefox browser, then allow camera access.");
+      }
       const camera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" }, width: { ideal: 540 }, height: { ideal: 540 } }, audio: false });
       if (!mounted) { camera.getTracks().forEach((track) => track.stop()); return; }
       stream.current = camera; if (video.current) { video.current.srcObject = camera; await video.current.play(); }
       if (mode === "verify") { const { data } = await api.post("/attendance/face/challenge/", { action }); if (!mounted) return; setSteps(data.steps); setChallengeId(data.challenge_id); }
-    } catch (e) { setError(e instanceof DOMException && e.name === "NotAllowedError" ? "Camera permission is required for face verification." : errorOf(e).message); }
+    } catch (e) {
+      const cameraDenied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
+      const cameraUnavailable = e instanceof DOMException && (e.name === "NotFoundError" || e.name === "OverconstrainedError");
+      setError(cameraDenied ? "Camera permission is required for face verification. Allow camera access in your browser settings, then try again." : cameraUnavailable ? "No usable front camera was found. Check that your camera is available and not being used by another app." : errorOf(e).message);
+    }
     finally { if (mounted) setBusy(false); } })();
     return () => { mounted = false; stream.current?.getTracks().forEach((track) => track.stop()); };
   }, [action, mode]);
