@@ -7,15 +7,6 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.db.models import Prefetch
 from django.utils import timezone
-from openpyxl import Workbook
-from openpyxl.drawing.image import Image as ExcelImage
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-
 from . import absence, rules
 from .models import AttendanceLocation, AttendanceRecord
 
@@ -145,6 +136,13 @@ def to_csv(rows):
 
 
 def to_xlsx(rows, title):
+    # OpenPyXL imports NumPy. Loading it while Django resolves every API route
+    # can exceed a Gunicorn worker's start/request timeout on small servers.
+    # Import it only for an actual Excel export.
+    from openpyxl import Workbook
+    from openpyxl.drawing.image import Image as ExcelImage
+    from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+
     wb = Workbook()
     ws = wb.active
     ws.title = title[:31]
@@ -187,6 +185,13 @@ def to_xlsx(rows, title):
 
 
 def to_pdf(rows, title, generated_by):
+    # ReportLab is likewise only required when a PDF is explicitly requested.
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=14 * mm, leftMargin=14 * mm, topMargin=14 * mm, bottomMargin=16 * mm)
     styles = getSampleStyleSheet()
