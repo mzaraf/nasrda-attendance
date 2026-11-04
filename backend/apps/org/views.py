@@ -30,7 +30,16 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             raise ValidationError({"campus_ids": "One or more selected campuses do not exist."})
         with transaction.atomic():
             department = serializer.save()
-            department.campuses.set(campuses)
+            # Write the verified campus/department link directly through the
+            # generated join model. This avoids relying on relationship-manager
+            # state during this create request while preserving multi-campus
+            # assignments.
+            campus_department = Campus.departments.through
+            for campus in campuses:
+                campus_department.objects.get_or_create(
+                    campus_id=campus.pk,
+                    department_id=department.pk,
+                )
         log(self.request, self.request.user, "department.created", department.name, new=serializer.data)
 
     def perform_update(self, serializer):
