@@ -21,13 +21,20 @@ export default function Departments() {
   }, [campuses, me?.primary_campus_id, selectedCampus]);
   const campus = campuses.find((item) => String(item.id) === selectedCampus);
   const visibleDepartments = campus ? departments.filter((department) => department.campus_ids.includes(campus.id)) : [];
+  const startNewDepartment = () => setEditing({
+    id: 0,
+    name: "",
+    // The campus currently being viewed is the natural home for a new
+    // department. It is still editable in the form when needed.
+    campus_ids: campus ? [campus.id] : [],
+  });
 
   const confirmDelete = (department: Department) => {
     if (window.confirm(`Delete ${department.name} department? This cannot be undone.`)) remove.mutate(department.id);
   };
   const table = (items: Department[]) => <div className="table-wrap"><table><thead><tr><th>Department</th><th></th></tr></thead><tbody>{items.map((department) => <tr key={department.id}><td><b>{department.name}</b></td><td className="row"><button className="link" onClick={() => setEditing(department)}>Edit</button><button className="link" disabled={remove.isPending} onClick={() => confirmDelete(department)}>Delete</button></td></tr>)}</tbody></table></div>;
 
-  return <div className="page wide"><div className="department-page-actions"><div className="department-page-title"><h2>Departments</h2><p>View and manage departments by campus.</p></div><div className="department-page-controls"><div className="department-campus-picker"><label htmlFor="department-campus">Campus</label><select id="department-campus" value={selectedCampus} onChange={(event) => setSelectedCampus(event.target.value)}><option value="">Select a campus…</option>{campuses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div><button className="btn primary" onClick={() => setEditing({ id: 0, name: "", campus_ids: [] })}>+ New department</button></div></div><div className="departments-table-gap" />
+  return <div className="page wide"><div className="department-page-actions"><div className="department-page-title"><h2>Departments</h2><p>View and manage departments by campus.</p></div><div className="department-page-controls"><div className="department-campus-picker"><label htmlFor="department-campus">Campus</label><select id="department-campus" value={selectedCampus} onChange={(event) => setSelectedCampus(event.target.value)}><option value="">Select a campus…</option>{campuses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div><button className="btn primary" onClick={startNewDepartment}>+ New department</button></div></div><div className="departments-table-gap" />
     {selectedCampus && <section className="department-campus-group"><div className="department-campus-heading"><h3>{campus?.name}</h3><span>{visibleDepartments.length} {visibleDepartments.length === 1 ? "department" : "departments"}</span></div>{visibleDepartments.length ? table(visibleDepartments) : <div className="empty-state">No departments are assigned to this campus yet.</div>}</section>}
     {!departments.length && <div className="empty-state">No departments have been created yet.</div>}
     {editing && <DepartmentModal department={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); qc.invalidateQueries({ queryKey: ["departments"] }); }} />}</div>;
