@@ -31,8 +31,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             department = serializer.save()
             department.campuses.set(campuses)
-            if not department.campuses.exists():
-                raise ValidationError({"campus_ids": "The campus assignment could not be saved. Please try again."})
         log(self.request, self.request.user, "department.created", department.name, new=serializer.data)
 
     def perform_update(self, serializer):
