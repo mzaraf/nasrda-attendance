@@ -89,6 +89,26 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
 }
 
+# In production Django deliberately returns a generic 500 response.  Keep the
+# technical traceback out of the browser, but send it to Gunicorn/systemd so an
+# administrator can diagnose a failed request from `journalctl`.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
+
 # ---- Cookies / HTTPS ----
 SESSION_COOKIE_AGE = 60 * 60 * 9          # 9h session timeout from sign-in
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
