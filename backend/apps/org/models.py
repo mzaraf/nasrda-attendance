@@ -2,7 +2,9 @@ from django.db import models
 
 
 class Department(models.Model):
-    name = models.CharField(max_length=120, unique=True)
+    # A campus may have its own ICT, Administration, etc.  The campus mapping
+    # is therefore part of a department's identity; name alone is not global.
+    name = models.CharField(max_length=120)
 
     def __str__(self):
         return self.name
