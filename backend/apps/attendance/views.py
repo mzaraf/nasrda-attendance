@@ -151,6 +151,7 @@ def me_payload(user, device_token=None):
         "id": user.pk, "name": user.get_full_name(), "first_name": user.first_name, "last_name": user.last_name,
         "ippis_number": user.ippis_number,
         "department": user.department.name if user.department_id else None,
+        "primary_campus_id": user.primary_campus_id,
         "can_admin": user.has_perm("accounts.attendance_view_all")
                      or user.has_perm("accounts.attendance_view_scope"),
         "can_manage_staff": user.has_perm("accounts.staff_manage"),

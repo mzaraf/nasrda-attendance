@@ -6,7 +6,7 @@ import { deviceToken } from "./lib/device";
 
 export type Me = {
   authenticated: boolean; name: string; first_name: string; last_name: string; ippis_number: string;
-  department: string | null; can_admin: boolean; can_manage_staff: boolean; can_view_staff: boolean; can_access_staff: boolean; can_approve: boolean;
+  department: string | null; primary_campus_id: number | null; can_admin: boolean; can_manage_staff: boolean; can_view_staff: boolean; can_access_staff: boolean; can_approve: boolean;
   can_manage_devices: boolean; can_access_approvals: boolean; can_export_reports: boolean; can_view_audit: boolean; can_manage_geofence: boolean; can_manage_roles: boolean;
   can_review_department_requests: boolean;
   face_enrolled: boolean; require_face_verification: boolean; has_approved_device: boolean; has_current_approved_device: boolean; require_approved_device: boolean; mfa_enabled: boolean; mfa_configured: boolean;
