@@ -190,6 +190,10 @@ class LeaveSerializer(serializers.ModelSerializer):
     def _name(user):
         return user.get_full_name().strip() if user and user.get_full_name().strip() else None
 
+    @staticmethod
+    def _with_comment(message, comment):
+        return f"{message}. Comment: {comment}" if comment else message
+
     def get_approval_state(self, obj):
         if obj.director_status == "rejected" or obj.status == "rejected":
             return "rejected"
@@ -201,13 +205,13 @@ class LeaveSerializer(serializers.ModelSerializer):
 
     def get_approval_message(self, obj):
         if obj.director_status == "rejected":
-            return f"Rejected by {self._name(obj.director_reviewed_by) or 'the department director'}. Comment: {obj.director_comment}".rstrip()
+            return self._with_comment(f"Rejected by {self._name(obj.director_reviewed_by) or 'the department director'}", obj.director_comment)
         if obj.status == "rejected":
-            return f"Rejected by {self._name(obj.approved_by) or 'the administrator'}. Comment: {obj.admin_comment}".rstrip()
+            return self._with_comment(f"Rejected by {self._name(obj.approved_by) or 'the administrator'}", obj.admin_comment)
         if obj.recall_return_date:
             return f"Recalled by {self._name(obj.recalled_by) or 'the administrator'}; return to duty from {obj.recall_return_date:%d %b %Y}. Reason: {obj.recall_reason}"
         if obj.status == "approved":
-            return f"Approved by {self._name(obj.approved_by) or 'the administrator'}. Comment: {obj.admin_comment}".rstrip()
+            return self._with_comment(f"Approved by {self._name(obj.approved_by) or 'the administrator'}", obj.admin_comment)
         if obj.director_status == "approved":
             return "Awaiting Administrator's Approval"
         return "Awaiting Director's Approval"
@@ -232,6 +236,10 @@ class OfficialDutySerializer(serializers.ModelSerializer):
     def _name(user):
         return user.get_full_name().strip() if user and user.get_full_name().strip() else None
 
+    @staticmethod
+    def _with_comment(message, comment):
+        return f"{message}. Comment: {comment}" if comment else message
+
     def get_approval_state(self, obj):
         if obj.director_status == "rejected" or obj.status == "rejected":
             return "rejected"
@@ -243,13 +251,13 @@ class OfficialDutySerializer(serializers.ModelSerializer):
 
     def get_approval_message(self, obj):
         if obj.director_status == "rejected":
-            return f"Rejected by {self._name(obj.director_reviewed_by) or 'the department director'}. Comment: {obj.director_comment}".rstrip()
+            return self._with_comment(f"Rejected by {self._name(obj.director_reviewed_by) or 'the department director'}", obj.director_comment)
         if obj.status == "rejected":
-            return f"Rejected by {self._name(obj.approved_by) or 'the administrator'}. Comment: {obj.admin_comment}".rstrip()
+            return self._with_comment(f"Rejected by {self._name(obj.approved_by) or 'the administrator'}", obj.admin_comment)
         if obj.recall_return_date:
             return f"Recalled by {self._name(obj.recalled_by) or 'the administrator'}; return to duty from {obj.recall_return_date:%d %b %Y}. Reason: {obj.recall_reason}"
         if obj.status == "approved":
-            return f"Approved by {self._name(obj.approved_by) or 'the administrator'}. Comment: {obj.admin_comment}".rstrip()
+            return self._with_comment(f"Approved by {self._name(obj.approved_by) or 'the administrator'}", obj.admin_comment)
         if obj.director_status == "approved":
             return "Awaiting Administrator's Approval"
         return "Awaiting Director's Approval"
@@ -275,6 +283,10 @@ class RecurringLeaveSerializer(serializers.ModelSerializer):
     def _name(user):
         return user.get_full_name().strip() if user and user.get_full_name().strip() else None
 
+    @staticmethod
+    def _with_comment(message, comment):
+        return f"{message}. Comment: {comment}" if comment else message
+
     class Meta:
         model = RecurringLeaveSchedule
         fields = ["id", "staff_name", "start_date", "end_date", "off_weekdays", "reason", "status", "director_status", "director_comment", "admin_comment", "recall_return_date", "recall_reason", "approval_state", "approval_message", "created_at"]
@@ -295,10 +307,10 @@ class RecurringLeaveSerializer(serializers.ModelSerializer):
         return "pending"
 
     def get_approval_message(self, obj):
-        if obj.director_status == "rejected": return f"Rejected by {self._name(obj.director_reviewed_by) or 'the Director'}. Comment: {obj.director_comment}".rstrip()
-        if obj.status == "rejected": return f"Rejected by {self._name(obj.approved_by) or 'the Administrator'}. Comment: {obj.admin_comment}".rstrip()
+        if obj.director_status == "rejected": return self._with_comment(f"Rejected by {self._name(obj.director_reviewed_by) or 'the Director'}", obj.director_comment)
+        if obj.status == "rejected": return self._with_comment(f"Rejected by {self._name(obj.approved_by) or 'the Administrator'}", obj.admin_comment)
         if obj.status == "recalled": return f"Recalled by {self._name(obj.recalled_by) or 'the Administrator'}; return to duty from {obj.recall_return_date:%d %b %Y}. Reason: {obj.recall_reason}"
-        if obj.status == "approved": return f"Approved by {self._name(obj.approved_by) or 'the Administrator'}. Comment: {obj.admin_comment}".rstrip()
+        if obj.status == "approved": return self._with_comment(f"Approved by {self._name(obj.approved_by) or 'the Administrator'}", obj.admin_comment)
         return "Awaiting Administrator's Approval" if obj.director_status == "approved" else "Awaiting Director's Approval"
 
 
