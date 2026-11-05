@@ -5,6 +5,7 @@ import { useAuth } from "../../auth";
 
 type Tab = "corrections" | "leave" | "official-duty" | "recurring-leave" | "review" | "devices" | "department-review";
 type RecallTarget = { id: number; kind: "leave" | "official-duty" | "recurring-leave"; staff: string; endDate: string };
+type RequestDetail = { item: any; kind: "leave" | "official-duty" | "recurring-leave"; directorReview: boolean };
 const TABS: [Tab, string][] = [/* Temporarily disabled: ["corrections", "Corrections"], */ ["leave", "Leave"],
   ["official-duty", "Official duty"], ["recurring-leave", "Recurring leave"], ["review", "Flagged for review"], ["devices", "Device removals"], ["department-review", "Department requests"]];
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
@@ -16,6 +17,9 @@ export default function Approvals() {
   const [returnDate, setReturnDate] = useState(today());
   const [recallReason, setRecallReason] = useState("");
   const [recallError, setRecallError] = useState("");
+  const [requestDetail, setRequestDetail] = useState<RequestDetail | null>(null);
+  const [comment, setComment] = useState("");
+  const [decisionError, setDecisionError] = useState("");
   const qc = useQueryClient();
   const tabs = TABS.filter(([key]) => {
     if (key === "devices") return me?.can_manage_devices;
@@ -29,14 +33,14 @@ export default function Approvals() {
     : tab === "review" ? "/admin/review-queue/" : tab === "devices" ? "/admin/device-removals/" : "/admin/department-review/";
   const { data = [] } = useQuery({ queryKey: [tab], queryFn: () => api.get(listUrl).then((r) => r.data) });
   const decide = useMutation({
-    mutationFn: ({ id, decision, type }: { id: number; decision: string; type?: string }) => {
+    mutationFn: ({ id, decision, type, comment }: { id: number; decision: string; type?: string; comment?: string }) => {
       const url = tab === "corrections" ? `/admin/corrections/${id}/decide/`
         : tab === "leave" ? `/admin/leave/${id}/decide/`
         : tab === "official-duty" ? `/admin/official-duty/${id}/decide/`
         : tab === "recurring-leave" ? `/admin/recurring-leave/${id}/decide/`
         : tab === "review" ? `/admin/review-queue/${id}/decide/` : tab === "devices" ? `/admin/device-removals/${id}/decide/` : `/admin/department-review/${type}/${id}/decide/`;
-      return api.post(url, { decision });
-    }, onSuccess: () => qc.invalidateQueries({ queryKey: [tab] }),
+      return api.post(url, { decision, ...(comment ? { comment } : {}) });
+    }, onSuccess: () => { setRequestDetail(null); setComment(""); qc.invalidateQueries({ queryKey: [tab] }); }, onError: (e) => setDecisionError(errorOf(e).message),
   });
   const recall = useMutation({
     mutationFn: () => api.post(`/admin/${recallTarget!.kind}/${recallTarget!.id}/recall/`, { return_date: returnDate, reason: recallReason.trim() }),
@@ -47,6 +51,10 @@ export default function Approvals() {
     setRecallError(""); setRecallReason(""); setReturnDate(today());
     setRecallTarget({ id: item.id, kind, staff: item.staff_name ?? item.staff, endDate: item.end_date });
   };
+  const openRequest = (item: any, kind: "leave" | "official-duty" | "recurring-leave") => {
+    setDecisionError(""); setComment("");
+    setRequestDetail({ item, kind, directorReview: tab === "department-review" });
+  };
 
   return <div className="page wide">
     <h2>Approvals</h2>
@@ -55,6 +63,7 @@ export default function Approvals() {
     {data.map((item: any) => {
       const recallable = (tab === "leave" || tab === "official-duty" || tab === "recurring-leave") ? item.status === "approved" : !!item.recallable;
       const kind = tab === "recurring-leave" || item.type === "recurring-leave" ? "recurring-leave" : tab === "official-duty" || item.type === "official-duty" ? "official-duty" : "leave";
+      const requestAwaitingDecision = !recallable && ["leave", "official-duty", "recurring-leave"].includes(kind) && (tab === "leave" || tab === "official-duty" || tab === "recurring-leave" || tab === "department-review");
       return <div className="row-card" key={`${item.type ?? tab}-${item.id}`}>
         <div><b>{item.staff_name ?? item.staff}</b><small>
           {tab === "corrections" && `${item.field} → ${new Date(item.requested_value).toLocaleString()} — ${item.reason}`}
@@ -65,12 +74,29 @@ export default function Approvals() {
           {tab === "devices" && `${item.device_label} · IPPIS ${item.ippis} · requested ${new Date(item.requested_at).toLocaleString()}`}
           {tab === "department-review" && item.detail}
         </small></div>
-        {recallable ? <button className="btn recall-btn" onClick={() => openRecall(item, kind)}>Recall</button> : <div className="row">
+        {recallable ? <button className="btn recall-btn" onClick={() => openRecall(item, kind)}>Recall</button> : requestAwaitingDecision ? <button className="btn approval-detail-btn" title="Review request details" aria-label="Review request details" onClick={() => openRequest(item, kind)}>✏️ Details</button> : <div className="row">
           <button className="btn" onClick={() => decide.mutate({ id: item.id, type: item.type, decision: tab === "review" ? "normal" : "approved" })}>{tab === "review" ? "Mark normal" : "Approve"}</button>
           <button className="btn" onClick={() => decide.mutate({ id: item.id, type: item.type, decision: tab === "review" ? "confirmed_issue" : "rejected" })}>{tab === "review" ? "Flag for HR" : "Reject"}</button>
         </div>}
       </div>;
     })}
+    {requestDetail && <div className="sheet-backdrop" role="presentation" onMouseDown={() => !decide.isPending && setRequestDetail(null)}>
+      <div className="sheet approval-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="request-detail-title" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="grab" /><h3 id="request-detail-title">Review {requestDetail.kind.replace("-", " ")} request</h3>
+        <div className="approval-request-summary"><p><b>Staff member</b><br />{requestDetail.item.staff_name ?? requestDetail.item.staff}</p>
+          {requestDetail.kind === "leave" && <p><b>Leave type</b><br />{requestDetail.item.kind}</p>}
+          {requestDetail.kind === "official-duty" && <p><b>Duty location</b><br />{requestDetail.item.location}</p>}
+          {requestDetail.kind === "recurring-leave" && <p><b>Recurring off days</b><br />{(requestDetail.item.off_weekdays ?? []).map((day: number) => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][day]).join(", ")}</p>}
+          <p><b>Period</b><br />{requestDetail.item.start_date} to {requestDetail.item.end_date}</p>
+          <p><b>Reason</b><br />{requestDetail.item.reason || "No reason provided."}</p>
+          {requestDetail.item.supporting_document && <p><a href={requestDetail.item.supporting_document} target="_blank" rel="noreferrer">Open supporting document</a></p>}
+        </div>
+        <label>{requestDetail.directorReview ? "Director comment" : "Administrator comment"}</label>
+        <textarea rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Enter a clear comment for the staff member" />
+        {decisionError && <div className="alert error">{decisionError}</div>}
+        <div className="row"><button className="btn" disabled={decide.isPending} onClick={() => setRequestDetail(null)}>Cancel</button><button className="btn danger-action" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "rejected", comment: comment.trim() })}>Reject</button><button className="btn primary" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "approved", comment: comment.trim() })}>{decide.isPending ? "Saving…" : "Approve"}</button></div>
+      </div>
+    </div>}
     {recallTarget && <div className="sheet-backdrop" role="presentation" onMouseDown={() => !recall.isPending && setRecallTarget(null)}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby="recall-title" onMouseDown={(e) => e.stopPropagation()}>
         <div className="grab" /><h3 id="recall-title">Recall {recallTarget.staff}</h3>

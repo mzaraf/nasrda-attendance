@@ -806,9 +806,16 @@ class DepartmentReviewDecide(APIView):
         decision = request.data.get("decision")
         if decision not in ("approved", "rejected"):
             raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
+        comment = str(request.data.get("comment", "")).strip()
+        if kind in {"leave", "official-duty", "recurring-leave"} and not comment:
+            raise DomainError("COMMENT_REQUIRED", "Enter a comment before approving or rejecting this request.")
         item.director_status, item.director_reviewed_by, item.director_reviewed_at = decision, request.user, timezone.now()
-        item.save(update_fields=["director_status", "director_reviewed_by", "director_reviewed_at"])
-        log(request, request.user, f"{kind}.director_{decision}", new={"request": item.pk})
+        update_fields = ["director_status", "director_reviewed_by", "director_reviewed_at"]
+        if kind in {"leave", "official-duty", "recurring-leave"}:
+            item.director_comment = comment
+            update_fields.append("director_comment")
+        item.save(update_fields=update_fields)
+        log(request, request.user, f"{kind}.director_{decision}", new={"request": item.pk, **({"comment": comment} if comment else {})})
         staff = getattr(item, owner)
         if decision == "approved":
             send_email(
@@ -819,7 +826,7 @@ class DepartmentReviewDecide(APIView):
         else:
             send_email(
                 f"Your {kind.replace('-', ' ')} request was rejected",
-                "Your department director has rejected your request. Please sign in to NASRDA Staff Attendance for details.",
+                f"Your department director has rejected your request." + (f" Comment: {comment}" if comment else ""),
                 [staff.email],
             )
         return Response({"status": decision})
@@ -861,12 +868,15 @@ class LeaveApprovalViewSet(viewsets.ModelViewSet):
         decision = request.data.get("decision")
         if decision not in ("approved", "rejected"):
             raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
-        rec.status, rec.approved_by, rec.approved_at = decision, request.user, timezone.now()
-        rec.save()
-        log(request, request.user, "leave.decided", decision, new={"leave": rec.pk})
+        comment = str(request.data.get("comment", "")).strip()
+        if not comment:
+            raise DomainError("COMMENT_REQUIRED", "Enter a comment before approving or rejecting this request.")
+        rec.status, rec.approved_by, rec.approved_at, rec.admin_comment = decision, request.user, timezone.now(), comment
+        rec.save(update_fields=["status", "approved_by", "approved_at", "admin_comment"])
+        log(request, request.user, "leave.decided", decision, new={"leave": rec.pk, "comment": comment})
         send_email(
             f"Your leave request was {decision}",
-            f"Your leave request from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}.",
+            f"Your leave request from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}. Comment: {comment}",
             [rec.user.email],
         )
         return Response(LeaveSerializer(rec).data)
@@ -926,12 +936,15 @@ class OfficialDutyViewSet(viewsets.ModelViewSet):
         decision = request.data.get("decision")
         if decision not in ("approved", "rejected"):
             raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
-        rec.status, rec.approved_by, rec.approved_at = decision, request.user, timezone.now()
-        rec.save()
-        log(request, request.user, "official_duty.decided", decision, new={"duty": rec.pk})
+        comment = str(request.data.get("comment", "")).strip()
+        if not comment:
+            raise DomainError("COMMENT_REQUIRED", "Enter a comment before approving or rejecting this request.")
+        rec.status, rec.approved_by, rec.approved_at, rec.admin_comment = decision, request.user, timezone.now(), comment
+        rec.save(update_fields=["status", "approved_by", "approved_at", "admin_comment"])
+        log(request, request.user, "official_duty.decided", decision, new={"duty": rec.pk, "comment": comment})
         send_email(
             f"Your official-duty request was {decision}",
-            f"Your official-duty request from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}.",
+            f"Your official-duty request from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}. Comment: {comment}",
             [rec.user.email],
         )
         return Response(OfficialDutySerializer(rec).data)
@@ -991,12 +1004,15 @@ class RecurringLeaveViewSet(viewsets.ModelViewSet):
         decision = request.data.get("decision")
         if decision not in ("approved", "rejected"):
             raise DomainError("INVALID", "decision must be 'approved' or 'rejected'.")
-        rec.status, rec.approved_by, rec.approved_at = decision, request.user, timezone.now()
-        rec.save(update_fields=["status", "approved_by", "approved_at"])
-        log(request, request.user, "recurring_leave.decided", decision, new={"recurring_leave": rec.pk})
+        comment = str(request.data.get("comment", "")).strip()
+        if not comment:
+            raise DomainError("COMMENT_REQUIRED", "Enter a comment before approving or rejecting this request.")
+        rec.status, rec.approved_by, rec.approved_at, rec.admin_comment = decision, request.user, timezone.now(), comment
+        rec.save(update_fields=["status", "approved_by", "approved_at", "admin_comment"])
+        log(request, request.user, "recurring_leave.decided", decision, new={"recurring_leave": rec.pk, "comment": comment})
         send_email(
             f"Your recurring leave request was {decision}",
-            f"Your recurring leave arrangement from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}.",
+            f"Your recurring leave arrangement from {rec.start_date:%d %b %Y} to {rec.end_date:%d %b %Y} was {decision} by {request.user.get_full_name()}. Comment: {comment}",
             [rec.user.email],
         )
         return Response(RecurringLeaveSerializer(rec).data)

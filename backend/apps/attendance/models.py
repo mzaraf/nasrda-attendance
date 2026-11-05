@@ -177,9 +177,11 @@ class LeaveRecord(models.Model):
     director_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                               on_delete=models.SET_NULL, related_name="leave_director_reviews")
     director_reviewed_at = models.DateTimeField(null=True, blank=True)
+    director_comment = models.TextField(blank=True)
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                     on_delete=models.SET_NULL, related_name="leave_approvals")
     approved_at = models.DateTimeField(null=True, blank=True)
+    admin_comment = models.TextField(blank=True)
     recalled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                     on_delete=models.SET_NULL, related_name="leave_recalls")
     recalled_at = models.DateTimeField(null=True, blank=True)
@@ -205,9 +207,11 @@ class OfficialDuty(models.Model):
     director_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                               on_delete=models.SET_NULL, related_name="duty_director_reviews")
     director_reviewed_at = models.DateTimeField(null=True, blank=True)
+    director_comment = models.TextField(blank=True)
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                     on_delete=models.SET_NULL, related_name="duty_approvals")
     approved_at = models.DateTimeField(null=True, blank=True)
+    admin_comment = models.TextField(blank=True)
     recalled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                     on_delete=models.SET_NULL, related_name="duty_recalls")
     recalled_at = models.DateTimeField(null=True, blank=True)
@@ -230,8 +234,10 @@ class RecurringLeaveSchedule(models.Model):
     director_status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
     director_reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_director_reviews")
     director_reviewed_at = models.DateTimeField(null=True, blank=True)
+    director_comment = models.TextField(blank=True)
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_approvals")
     approved_at = models.DateTimeField(null=True, blank=True)
+    admin_comment = models.TextField(blank=True)
     recalled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="recurring_leave_recalls")
     recalled_at = models.DateTimeField(null=True, blank=True)
     recall_return_date = models.DateField(null=True, blank=True)
