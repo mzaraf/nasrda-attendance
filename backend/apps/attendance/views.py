@@ -780,11 +780,12 @@ class DepartmentReviewQueue(APIView):
                                                   start_date__lte=today, end_date__gte=today, recall_return_date__isnull=True).select_related("user")
         active_recurring_leave = RecurringLeaveSchedule.objects.filter(status="approved", director_status="approved", user__department_id=request.user.department_id,
                                                                         start_date__lte=today, end_date__gte=today, recall_return_date__isnull=True).select_related("user")
+        pending_leave = [{**LeaveSerializer(x).data, "type": "leave", "staff": x.user.get_full_name(), "detail": f"{x.kind}: {x.start_date} → {x.end_date} · {x.reason}"} for x in leave]
+        pending_duty = [{**OfficialDutySerializer(x).data, "type": "official-duty", "staff": x.user.get_full_name(), "detail": f"{x.location}: {x.start_date} → {x.end_date} · {x.reason}"} for x in duty]
+        pending_recurring = [{**RecurringLeaveSerializer(x).data, "type": "recurring-leave", "staff": x.user.get_full_name(), "detail": f"Recurring leave ({', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day] for day in x.off_weekdays)} off): {x.start_date} → {x.end_date} · {x.reason}"} for x in recurring_leave]
         return Response(
             [{"id": x.id, "type": "correction", "staff": x.requested_by.get_full_name(), "detail": f"{x.field} → {x.requested_value}: {x.reason}", "created_at": x.created_at} for x in corrections] +
-            [{"id": x.id, "type": "leave", "staff": x.user.get_full_name(), "detail": f"{x.kind}: {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in leave] +
-            [{"id": x.id, "type": "official-duty", "staff": x.user.get_full_name(), "detail": f"{x.location}: {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in duty] +
-            [{"id": x.id, "type": "recurring-leave", "staff": x.user.get_full_name(), "detail": f"Recurring leave ({', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day] for day in x.off_weekdays)} off): {x.start_date} → {x.end_date} · {x.reason}", "created_at": x.created_at} for x in recurring_leave] +
+            pending_leave + pending_duty + pending_recurring +
             [{"id": x.id, "type": "leave", "staff": x.user.get_full_name(), "detail": f"Approved leave: {x.kind} · {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_leave] +
             [{"id": x.id, "type": "official-duty", "staff": x.user.get_full_name(), "detail": f"Approved official duty: {x.location} · {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_duty]
             + [{"id": x.id, "type": "recurring-leave", "staff": x.user.get_full_name(), "detail": f"Approved recurring leave ({', '.join(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][day] for day in x.off_weekdays)} off): {x.start_date} → {x.end_date}", "recallable": True, "end_date": str(x.end_date), "created_at": x.created_at} for x in active_recurring_leave]

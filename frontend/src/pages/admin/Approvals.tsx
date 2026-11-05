@@ -9,6 +9,8 @@ type RequestDetail = { item: any; kind: "leave" | "official-duty" | "recurring-l
 const TABS: [Tab, string][] = [/* Temporarily disabled: ["corrections", "Corrections"], */ ["leave", "Leave"],
   ["official-duty", "Official duty"], ["recurring-leave", "Recurring leave"], ["review", "Flagged for review"], ["devices", "Device removals"], ["department-review", "Department requests"]];
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Lagos" });
+const titleCase = (value?: string) => (value || "Not provided").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+const displayDate = (value?: string) => value ? new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Not provided";
 
 export default function Approvals() {
   const { me } = useAuth();
@@ -82,19 +84,19 @@ export default function Approvals() {
     })}
     {requestDetail && <div className="sheet-backdrop" role="presentation" onMouseDown={() => !decide.isPending && setRequestDetail(null)}>
       <div className="sheet approval-detail-sheet" role="dialog" aria-modal="true" aria-labelledby="request-detail-title" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="grab" /><h3 id="request-detail-title">Review {requestDetail.kind.replace("-", " ")} request</h3>
-        <div className="approval-request-summary"><p><b>Staff member</b><br />{requestDetail.item.staff_name ?? requestDetail.item.staff}</p>
-          {requestDetail.kind === "leave" && <p><b>Leave type</b><br />{requestDetail.item.kind}</p>}
-          {requestDetail.kind === "official-duty" && <p><b>Duty location</b><br />{requestDetail.item.location}</p>}
-          {requestDetail.kind === "recurring-leave" && <p><b>Recurring off days</b><br />{(requestDetail.item.off_weekdays ?? []).map((day: number) => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][day]).join(", ")}</p>}
-          <p><b>Period</b><br />{requestDetail.item.start_date} to {requestDetail.item.end_date}</p>
-          <p><b>Reason</b><br />{requestDetail.item.reason || "No reason provided."}</p>
-          {requestDetail.item.supporting_document && <p><a href={requestDetail.item.supporting_document} target="_blank" rel="noreferrer">Open supporting document</a></p>}
-        </div>
+        <div className="grab" /><div className="approval-modal-heading"><div><p className="approval-eyebrow">REQUEST REVIEW</p><h3 id="request-detail-title">{titleCase(requestDetail.kind)} request</h3><p className="muted">Review the details, add your comment, then choose a decision.</p></div></div>
+        <dl className="approval-request-summary"><div><dt>Staff member</dt><dd>{requestDetail.item.staff_name ?? requestDetail.item.staff}</dd></div>
+          {requestDetail.kind === "leave" && <div><dt>Leave type</dt><dd>{titleCase(requestDetail.item.kind)}</dd></div>}
+          {requestDetail.kind === "official-duty" && <div><dt>Duty location</dt><dd>{requestDetail.item.location || "Not provided"}</dd></div>}
+          {requestDetail.kind === "recurring-leave" && <div><dt>Recurring off days</dt><dd>{(requestDetail.item.off_weekdays ?? []).map((day: number) => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][day]).join(", ") || "Not provided"}</dd></div>}
+          <div><dt>From</dt><dd>{displayDate(requestDetail.item.start_date)}</dd></div><div><dt>To</dt><dd>{displayDate(requestDetail.item.end_date)}</dd></div>
+          <div className="approval-reason"><dt>Reason</dt><dd>{requestDetail.item.reason || "No reason provided."}</dd></div>
+          {requestDetail.item.supporting_document && <div className="approval-reason"><dt>Supporting document</dt><dd><a href={requestDetail.item.supporting_document} target="_blank" rel="noreferrer">Open supporting document</a></dd></div>}
+        </dl>
         <label>{requestDetail.directorReview ? "Director comment" : "Administrator comment"}</label>
         <textarea rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Enter a clear comment for the staff member" />
         {decisionError && <div className="alert error">{decisionError}</div>}
-        <div className="row"><button className="btn" disabled={decide.isPending} onClick={() => setRequestDetail(null)}>Cancel</button><button className="btn danger-action" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "rejected", comment: comment.trim() })}>Reject</button><button className="btn primary" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "approved", comment: comment.trim() })}>{decide.isPending ? "Saving…" : "Approve"}</button></div>
+        <div className="approval-modal-actions"><button className="btn" disabled={decide.isPending} onClick={() => setRequestDetail(null)}>Cancel</button><button className="btn danger-action" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "rejected", comment: comment.trim() })}>Reject request</button><button className="btn primary" disabled={decide.isPending || !comment.trim()} onClick={() => decide.mutate({ id: requestDetail.item.id, type: requestDetail.item.type, decision: "approved", comment: comment.trim() })}>{decide.isPending ? "Saving…" : "Approve request"}</button></div>
       </div>
     </div>}
     {recallTarget && <div className="sheet-backdrop" role="presentation" onMouseDown={() => !recall.isPending && setRecallTarget(null)}>
