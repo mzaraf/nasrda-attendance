@@ -50,6 +50,7 @@ ACTION_LABELS = {
     "official_duty.decided": "Reviewed official-duty request", "attendance.review_decision": "Reviewed attendance record",
     "reports.exported": "Exported report", "location.accuracy_insufficient": "Attendance blocked: insufficient location accuracy",
     "geofence.violation": "Attendance blocked: outside authorized geofence",
+    "location.mock_detected": "Attendance blocked: mocked location detected",
 }
 
 

@@ -40,6 +40,14 @@ def finalize_expired_open_records(now=None):
 
 def _verify_location(request, user, data, action):
     lat, lng, acc = data["latitude"], data["longitude"], data["accuracy"]
+    if data.get("mock_location_detected"):
+        log(request, user, "location.mock_detected", f"{action}: device reported a mocked location",
+            new={"lat": lat, "lng": lng, "accuracy": acc, "action": action})
+        raise DomainError(
+            "MOCK_LOCATION_DETECTED",
+            "Attendance cannot be recorded because this device reported a mocked location. Turn off mock-location tools and try again.",
+            403,
+        )
     if acc > get_setting("min_accuracy_m"):
         log(request, user, "location.accuracy_insufficient", f"{action}: accuracy {acc:.0f}m")
         raise DomainError("ACCURACY_INSUFFICIENT",

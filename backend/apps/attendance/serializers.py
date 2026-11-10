@@ -12,6 +12,9 @@ class LocationInputSerializer(serializers.Serializer):
     latitude = serializers.FloatField(min_value=-90, max_value=90)
     longitude = serializers.FloatField(min_value=-180, max_value=180)
     accuracy = serializers.FloatField(min_value=0)
+    # Native mobile apps should set this when the operating system marks the
+    # position as mocked. Browsers do not expose an equivalent reliable signal.
+    mock_location_detected = serializers.BooleanField(required=False, default=False)
     face_verification_id = serializers.UUIDField(required=False)
     device_token = serializers.CharField(required=False, max_length=160)
 
