@@ -36,6 +36,8 @@ htmlcov/
 
 # Locally generated deliverables and working files
 artifacts/
+output/
+tmp/
 
 # Editors and operating systems
 .vscode/

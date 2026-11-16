@@ -123,11 +123,18 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# ---- Lockout (django-axes): 5 failures -> 30 min lock ----
+# ---- Lockout (django-axes): 5 failures -> 30 min lock per IPPIS account ----
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
-AXES_LOCKOUT_PARAMETERS = ["username", "ip_address"]
+# Do not include ``ip_address`` here: Axes treats entries in this list as
+# alternatives, so a shared office IP could otherwise lock out every staff
+# member using that connection.
+AXES_LOCKOUT_PARAMETERS = ["username"]
 AXES_RESET_ON_SUCCESS = True
+# This warning assumes every deployment requires IP-based lockouts.  Here that
+# would contradict the deliberate per-staff-account policy above; the login
+# endpoint has its own IPPIS-keyed request throttle as a complementary limit.
+SILENCED_SYSTEM_CHECKS = ["axes.W006"]
 
 # ---- Email (optional; delivery failures are handled silently by apps.core.emailing) ----
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")

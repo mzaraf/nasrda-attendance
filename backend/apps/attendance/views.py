@@ -19,6 +19,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from axes.handlers.proxy import AxesProxyHandler
+from .throttling import IppisLoginRateThrottle
 from . import reports as rpt
 from apps.accounts.scope import HasAnyPerm, scoped_staff
 from apps.audit.services import log
@@ -55,7 +56,7 @@ def notification_recipients(permission, department=None):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [IppisLoginRateThrottle]
     throttle_scope = "login"
 
     def post(self, request):
