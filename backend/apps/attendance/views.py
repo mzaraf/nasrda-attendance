@@ -61,6 +61,16 @@ class LoginView(APIView):
 
     def post(self, request):
         ippis_number = str(request.data.get("ippis_number", "")).strip()
+        # A clear message avoids making staff repeatedly try credentials for a
+        # profile that has not been created. This is an intentional usability
+        # choice for the internal staff portal.
+        if not get_user_model().objects.filter(ippis_number=ippis_number).exists():
+            log(request, None, "auth.login_failed", ippis_number[:32])
+            raise DomainError(
+                "IPPIS_NOT_FOUND",
+                "We could not find a staff profile for this IPPIS number. Please contact your administrator to confirm that your profile has been set up correctly.",
+                401,
+            )
         # Pass the custom USERNAME_FIELD by its actual name.  django-axes uses
         # this key when it records failures, so passing Django's generic
         # ``username`` argument would leave the IPPIS lockout counter empty.
@@ -71,7 +81,11 @@ class LoginView(APIView):
                 log(request, None, "auth.login_locked", ippis_number[:32])
                 raise DomainError("ACCOUNT_LOCKED", "This account is locked after too many unsuccessful sign-in attempts. Please try again in 30 minutes.", 403)
             log(request, None, "auth.login_failed", ippis_number[:32])
-            raise DomainError("INVALID_CREDENTIALS", "Invalid IPPIS number or password.", 401)
+            raise DomainError(
+                "INVALID_PASSWORD",
+                "The password entered is incorrect. Please check it and try again, or select Forgot password to reset it.",
+                401,
+            )
         # Require the authenticator code only after staff have completed enrollment.
         # A newly enabled profile may still sign in once to configure the app.
         if user.mfa_enabled and user.mfa_confirmed:

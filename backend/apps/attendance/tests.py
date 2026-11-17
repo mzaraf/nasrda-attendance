@@ -34,7 +34,9 @@ class IppisLoginRateThrottleTests(SimpleTestCase):
     @patch("apps.attendance.views.log")
     @patch("apps.attendance.views.AxesProxyHandler.is_locked", return_value=False)
     @patch("apps.attendance.views.authenticate", return_value=None)
-    def test_failed_login_passes_ippis_to_axes(self, authenticate, is_locked, _log, _throttle):
+    @patch("apps.attendance.views.get_user_model")
+    def test_failed_login_passes_ippis_to_axes(self, get_user_model, authenticate, is_locked, _log, _throttle):
+        get_user_model.return_value.objects.filter.return_value.exists.return_value = True
         request = self.factory.post(
             "/api/auth/login/", {"ippis_number": "482427", "password": "incorrect"}, format="json"
         )
@@ -46,3 +48,20 @@ class IppisLoginRateThrottleTests(SimpleTestCase):
             authenticate.call_args.args[0], ippis_number="482427", password="incorrect"
         )
         is_locked.assert_called_once_with(is_locked.call_args.args[0], credentials={"ippis_number": "482427"})
+
+    @patch("apps.attendance.views.IppisLoginRateThrottle.allow_request", return_value=True)
+    @patch("apps.attendance.views.log")
+    @patch("apps.attendance.views.authenticate")
+    @patch("apps.attendance.views.get_user_model")
+    def test_missing_ippis_explains_that_no_profile_exists(self, get_user_model, authenticate, _log, _throttle):
+        get_user_model.return_value.objects.filter.return_value.exists.return_value = False
+        request = self.factory.post(
+            "/api/auth/login/", {"ippis_number": "000000", "password": "incorrect"}, format="json"
+        )
+
+        response = LoginView.as_view()(request)
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.data["code"], "IPPIS_NOT_FOUND")
+        self.assertIn("contact your administrator", response.data["message"])
+        authenticate.assert_not_called()
