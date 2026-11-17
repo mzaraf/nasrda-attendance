@@ -61,10 +61,13 @@ class LoginView(APIView):
 
     def post(self, request):
         ippis_number = str(request.data.get("ippis_number", "")).strip()
-        user = authenticate(request, username=ippis_number,
+        # Pass the custom USERNAME_FIELD by its actual name.  django-axes uses
+        # this key when it records failures, so passing Django's generic
+        # ``username`` argument would leave the IPPIS lockout counter empty.
+        user = authenticate(request, ippis_number=ippis_number,
                             password=request.data.get("password", ""))
         if not user:                              # axes counts failures and locks after 5
-            if AxesProxyHandler.is_locked(request, credentials={"username": ippis_number}):
+            if AxesProxyHandler.is_locked(request, credentials={"ippis_number": ippis_number}):
                 log(request, None, "auth.login_locked", ippis_number[:32])
                 raise DomainError("ACCOUNT_LOCKED", "This account is locked after too many unsuccessful sign-in attempts. Please try again in 30 minutes.", 403)
             log(request, None, "auth.login_failed", ippis_number[:32])

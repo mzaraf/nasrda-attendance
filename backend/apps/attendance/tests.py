@@ -1,8 +1,11 @@
 from django.test import SimpleTestCase
+from unittest.mock import patch
+
 from rest_framework.views import APIView
 from rest_framework.test import APIRequestFactory
 
 from .throttling import IppisLoginRateThrottle
+from .views import LoginView
 
 
 class IppisLoginRateThrottleTests(SimpleTestCase):
@@ -26,3 +29,20 @@ class IppisLoginRateThrottleTests(SimpleTestCase):
         from django.conf import settings
 
         self.assertEqual(settings.AXES_LOCKOUT_PARAMETERS, ["username"])
+
+    @patch("apps.attendance.views.IppisLoginRateThrottle.allow_request", return_value=True)
+    @patch("apps.attendance.views.log")
+    @patch("apps.attendance.views.AxesProxyHandler.is_locked", return_value=False)
+    @patch("apps.attendance.views.authenticate", return_value=None)
+    def test_failed_login_passes_ippis_to_axes(self, authenticate, is_locked, _log, _throttle):
+        request = self.factory.post(
+            "/api/auth/login/", {"ippis_number": "482427", "password": "incorrect"}, format="json"
+        )
+
+        response = LoginView.as_view()(request)
+
+        self.assertEqual(response.status_code, 401)
+        authenticate.assert_called_once_with(
+            authenticate.call_args.args[0], ippis_number="482427", password="incorrect"
+        )
+        is_locked.assert_called_once_with(is_locked.call_args.args[0], credentials={"ippis_number": "482427"})
